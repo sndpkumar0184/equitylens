@@ -8,9 +8,14 @@ import java.util.List;
 public interface FinancialMetricRepository
         extends JpaRepository<FinancialMetric, Long> {
 
-    List<FinancialMetric> findByCompanyId(Long companyId);
+    List<FinancialMetric> findByCompanyIdOrderByPeriodEndDesc(
+            Long companyId
+    );
 
     List<FinancialMetric> findByCompanyIdAndMetric(
             Long companyId,
-            String metric);
+            String metric
+    );
+
+    void deleteByCompanyId(Long companyId);
 }

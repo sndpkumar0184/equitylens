@@ -5,10 +5,12 @@ import com.equitylens.entity.FinancialMetric;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.time.format.DateTimeParseException;
 
 @Component
 public class SecFinancialDataParser {
@@ -20,23 +22,32 @@ public class SecFinancialDataParser {
         List<FinancialMetric> metrics = new ArrayList<>();
 
         JsonNode facts = companyFacts.getFacts();
-
         JsonNode usGaap = facts
                 .path("facts")
                 .path("us-gaap");
 
+        parseRevenue(usGaap, company, metrics);
+
         parseMetric(
                 usGaap,
-                "Revenues",
-                "revenue",
+                "CostOfRevenue",
+                "cost_of_revenue",
                 company,
                 metrics
         );
 
         parseMetric(
                 usGaap,
-                "RevenueFromContractWithCustomerExcludingAssessedTax",
-                "revenue",
+                "GrossProfit",
+                "gross_profit",
+                company,
+                metrics
+        );
+
+        parseMetric(
+                usGaap,
+                "OperatingIncomeLoss",
+                "operating_income",
                 company,
                 metrics
         );
@@ -65,7 +76,115 @@ public class SecFinancialDataParser {
                 metrics
         );
 
-        return metrics;
+        parseMetric(
+                usGaap,
+                "ShortTermInvestments",
+                "short_term_investments",
+                company,
+                metrics
+        );
+
+        parseMetric(
+                usGaap,
+                "AssetsCurrent",
+                "current_assets",
+                company,
+                metrics
+        );
+
+        parseMetric(
+                usGaap,
+                "LiabilitiesCurrent",
+                "current_liabilities",
+                company,
+                metrics
+        );
+
+        parseMetric(
+                usGaap,
+                "LongTermDebtCurrent",
+                "current_debt",
+                company,
+                metrics
+        );
+
+        parseMetric(
+                usGaap,
+                "LongTermDebtNoncurrent",
+                "long_term_debt",
+                company,
+                metrics
+        );
+
+        parseMetric(
+                usGaap,
+                "StockholdersEquity",
+                "stockholders_equity",
+                company,
+                metrics
+        );
+
+        parseMetric(
+                usGaap,
+                "NetCashProvidedByUsedInOperatingActivities",
+                "operating_cash_flow",
+                company,
+                metrics
+        );
+
+        parseMetric(
+                usGaap,
+                "PaymentsToAcquirePropertyPlantAndEquipment",
+                "capital_expenditures",
+                company,
+                metrics
+        );
+
+        parseMetric(
+                usGaap,
+                "NetCashProvidedByUsedInInvestingActivities",
+                "investing_cash_flow",
+                company,
+                metrics
+        );
+
+        parseMetric(
+                usGaap,
+                "NetCashProvidedByUsedInFinancingActivities",
+                "financing_cash_flow",
+                company,
+                metrics
+        );
+
+        Map<SecObservationPolicy.PeriodKey, FinancialMetric> selected = new HashMap<>();
+        metrics.forEach(m -> selected.merge(SecObservationPolicy.PeriodKey.of(m), m,
+                SecObservationPolicy::latest));
+        return selected.values().stream()
+                .sorted(java.util.Comparator.comparing(FinancialMetric::getMetric)
+                        .thenComparing(FinancialMetric::getUnit)
+                        .thenComparing(FinancialMetric::getPeriodEnd)
+                        .thenComparing(FinancialMetric::getPeriodStart,
+                                java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())))
+                .toList();
+    }
+
+    private void parseRevenue(
+            JsonNode usGaap,
+            Company company,
+            List<FinancialMetric> metrics) {
+
+        List<FinancialMetric> preferred = new ArrayList<>();
+        List<FinancialMetric> fallback = new ArrayList<>();
+        parseMetric(usGaap, "RevenueFromContractWithCustomerExcludingAssessedTax",
+                "revenue", company, preferred);
+        parseMetric(usGaap, "Revenues", "revenue", company, fallback);
+        var preferredPeriods = preferred.stream()
+                .map(SecObservationPolicy.PeriodKey::of)
+                .collect(java.util.stream.Collectors.toSet());
+        metrics.addAll(preferred);
+        fallback.stream()
+                .filter(m -> !preferredPeriods.contains(SecObservationPolicy.PeriodKey.of(m)))
+                .forEach(metrics::add);
     }
 
     private void parseMetric(
@@ -83,7 +202,6 @@ public class SecFinancialDataParser {
 
         JsonNode units = metric.path("units");
 
-        // Jackson 3: use properties() instead of fields()
         units.properties().forEach(unitEntry -> {
 
             String unit = unitEntry.getKey();
@@ -94,90 +212,34 @@ public class SecFinancialDataParser {
             }
 
             for (JsonNode item : values) {
-
-                if (!item.has("val") || item.get("val").isNull()) {
-                    continue;
+                // Malformed observations must not hide an older valid filing or revenue fallback.
+                try {
+                    if (!item.path("val").isNumber()) continue;
+                    FinancialMetric fact = new FinancialMetric();
+                    fact.setCompany(company);
+                    fact.setMetric(metricName);
+                    fact.setUnit(unit);
+                    fact.setValue(item.get("val").decimalValue());
+                    fact.setPeriodStart(date(item, "start"));
+                    fact.setPeriodEnd(date(item, "end"));
+                    fact.setFilingDate(date(item, "filed"));
+                    fact.setForm(text(item, "form"));
+                    fact.setFrame(text(item, "frame"));
+                    if (SecObservationPolicy.isValid(fact)) metrics.add(fact);
+                } catch (DateTimeParseException | NumberFormatException ignored) {
+                    // Ignore just this invalid observation, not the remainder of the company facts.
                 }
-
-                // Only process financial statements
-                if (!item.has("form") || item.get("form").isNull()) {
-                    continue;
-                }
-
-                String form = item.get("form").asString();
-
-                if (!form.equals("10-Q")
-                        && !form.equals("10-K")
-                        && !form.equals("10-Q/A")
-                        && !form.equals("10-K/A")) {
-                    continue;
-                }
-
-                FinancialMetric financialMetric =
-                        new FinancialMetric();
-
-                financialMetric.setCompany(company);
-                financialMetric.setMetric(metricName);
-                financialMetric.setUnit(unit);
-
-                financialMetric.setValue(
-                        new BigDecimal(
-                                item.get("val").asString()
-                        )
-                );
-
-                // Financial period start
-                if (item.has("start")
-                        && !item.get("start").isNull()) {
-
-                    financialMetric.setPeriodStart(
-                            LocalDate.parse(
-                                    item.get("start").asString()
-                            )
-                    );
-                }
-
-                // Financial period end
-                if (item.has("end")
-                        && !item.get("end").isNull()) {
-
-                    financialMetric.setPeriodEnd(
-                            LocalDate.parse(
-                                    item.get("end").asString()
-                            )
-                    );
-                }
-
-                // SEC filing date
-                if (item.has("filed")
-                        && !item.get("filed").isNull()) {
-
-                    financialMetric.setFilingDate(
-                            LocalDate.parse(
-                                    item.get("filed").asString()
-                            )
-                    );
-                }
-
-                // SEC filing form: 10-Q, 10-K, etc.
-                if (item.has("form")
-                        && !item.get("form").isNull()) {
-
-                    financialMetric.setForm(
-                            item.get("form").asString()
-                    );
-                }
-
-                if (item.has("frame")
-                        && !item.get("frame").isNull()) {
-
-                    financialMetric.setFrame(
-                            item.get("frame").asText()
-                    );
-                }
-
-                metrics.add(financialMetric);
             }
         });
+    }
+
+    private LocalDate date(JsonNode item, String field) {
+        String value = text(item, field);
+        return value == null ? null : LocalDate.parse(value);
+    }
+
+    private String text(JsonNode item, String field) {
+        JsonNode value = item.get(field);
+        return value != null && value.isString() ? value.asString() : null;
     }
 }
