@@ -25,6 +25,8 @@ Free financial research platform.
 - SEC data must be normalized before being exposed to the frontend.
 
 ## Development
+PostgreSQL runs in Docker Desktop. Start its existing container before backend tests or bootRun; use the datasource settings in application.properties.
+
 Backend:
 ./gradlew test
 ./gradlew bootRun
