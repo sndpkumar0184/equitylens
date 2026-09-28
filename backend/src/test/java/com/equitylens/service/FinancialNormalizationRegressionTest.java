@@ -196,6 +196,20 @@ class FinancialNormalizationRegressionTest {
         assertEquals(new BigDecimal("450"), period(result, "FY").value());
     }
 
+    @Test
+    void rollingYearInQuarterlyFilingDoesNotBecomeFiscalYearOrQuarterAnchor() {
+        var annual = fact("revenue", "2025-01-01", "2025-12-31", "400");
+        annual.setForm("10-K");
+        var rolling = fact("net_income", "2025-07-01", "2026-06-30", "80");
+        rolling.setForm("10-Q");
+        rolling.setFilingDate(LocalDate.of(2026, 8, 1));
+        var quarter = fact("revenue", "2025-07-01", "2025-09-30", "100");
+        var result = normalizer.normalize(List.of(annual, rolling, quarter));
+        assertEquals("ROLLING_YEAR", result.stream().filter(m -> m.metric().equals("net_income")).findFirst().orElseThrow().period());
+        assertEquals(new BigDecimal("400"), period(result, "FY").value());
+        assertEquals(new BigDecimal("100"), period(result, "Q3").value());
+    }
+
     private NormalizedFinancialMetricResponse period(List<NormalizedFinancialMetricResponse> result, String label) {
         return result.stream().filter(m -> m.period().equals(label)).findFirst().orElseThrow();
     }

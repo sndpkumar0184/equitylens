@@ -21,7 +21,7 @@ Explore SEC financial statements, understand business performance, and put daily
 
 EquityLens brings company fundamentals and market history into one research workspace. The backend handles importing, normalizing, storing, and calculating financial data. The frontend makes those results easy to explore.
 
-> **Development status:** The dashboard expansion and StashGamma market layer are being developed in the working tree. This documentation-only commit describes that implementation; those feature changes must also be checked in before a fresh clone includes every feature below.
+> **Development status:** The ticker-driven financial dashboard and StashGamma market layer are implemented and tested. EquityLens is under active development; public market-data display requires the provider authorization described below.
 
 ## What you can explore
 

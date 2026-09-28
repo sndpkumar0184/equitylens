@@ -4,7 +4,6 @@ import com.equitylens.dto.MarketDataResponse;
 import com.equitylens.entity.Company;
 import com.equitylens.entity.MarketData;
 import com.equitylens.providers.MarketDataProvider;
-import com.equitylens.repository.CompanyRepository;
 import com.equitylens.repository.MarketDataRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,16 +11,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class MarketDataService {
 
-    private final CompanyRepository companyRepository;
+    private final CompanyService companyService;
     private final MarketDataRepository marketDataRepository;
     private final MarketDataProvider marketDataProvider;
 
     public MarketDataService(
-            CompanyRepository companyRepository,
+            CompanyService companyService,
             MarketDataRepository marketDataRepository,
             MarketDataProvider marketDataProvider
     ) {
-        this.companyRepository = companyRepository;
+        this.companyService = companyService;
         this.marketDataRepository = marketDataRepository;
         this.marketDataProvider = marketDataProvider;
     }
@@ -29,14 +28,7 @@ public class MarketDataService {
     @Transactional
     public MarketDataResponse refresh(String ticker) {
 
-        Company company =
-                companyRepository
-                        .findByTickerIgnoreCase(ticker)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Company not found: " + ticker
-                                )
-                        );
+        Company company = companyService.getCompany(ticker);
 
         MarketDataProvider.MarketQuote quote =
                 marketDataProvider.getQuote(
@@ -80,19 +72,12 @@ public class MarketDataService {
         return toResponse(saved);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public MarketDataResponse getMarketData(
             String ticker
     ) {
 
-        Company company =
-                companyRepository
-                        .findByTickerIgnoreCase(ticker)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Company not found: " + ticker
-                                )
-                        );
+        Company company = companyService.getCompany(ticker);
 
         MarketData marketData =
                 marketDataRepository

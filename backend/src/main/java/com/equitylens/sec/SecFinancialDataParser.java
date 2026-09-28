@@ -14,6 +14,7 @@ import java.time.format.DateTimeParseException;
 
 @Component
 public class SecFinancialDataParser {
+    public static final int MAPPING_VERSION = 2;
 
     public List<FinancialMetric> parse(
             SecCompanyFacts companyFacts,
@@ -27,6 +28,11 @@ public class SecFinancialDataParser {
                 .path("us-gaap");
 
         parseRevenue(usGaap, company, metrics);
+
+        // Additive mappings; keep the existing parser, observation selection, and import pipeline.
+        parseMetric(usGaap, "Liabilities", "liabilities", company, metrics);
+        parseMetric(usGaap, "ShortTermBorrowings", "short_term_borrowings", company, metrics);
+
 
         parseMetric(
                 usGaap,

@@ -32,4 +32,5 @@ test("missing values stay distinct from zero and losses keep their sign", () => 
   assert.equal(money(0), "$0");
   assert.equal(money(-1000000), "-$1M");
   assert.equal(money(1234567, false), "$1,234,567");
+  assert.equal(money(1234.56, false), "$1,234.56");
 });

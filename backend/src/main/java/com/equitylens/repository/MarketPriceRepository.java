@@ -10,6 +10,11 @@ import java.util.Optional;
 public interface MarketPriceRepository
         extends JpaRepository<MarketPrice, Long> {
 
+    List<MarketPrice> findByCompanyIdAndSourceAndPriceDateBetweenOrderByPriceDateAsc(
+            Long companyId, String source, LocalDate from, LocalDate to);
+
+    long countByCompanyIdAndSource(Long companyId, String source);
+
     Optional<MarketPrice> findByCompanyIdAndPriceDate(
             Long companyId,
             LocalDate priceDate

@@ -18,7 +18,7 @@ export function balanceAt(balances: BalanceSheet[], date: string | undefined) {
 
 export function money(value: number | null | undefined, compact = true) {
   if (value == null || !Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: compact ? "compact" : "standard", maximumFractionDigits: compact ? 2 : 0 }).format(value);
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: compact ? "compact" : "standard", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value);
 }
 
 export function dateLabel(date: string) {

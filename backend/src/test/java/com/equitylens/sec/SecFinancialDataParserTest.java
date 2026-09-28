@@ -15,6 +15,17 @@ class SecFinancialDataParserTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
+    void importsReportedLiabilitiesAndShortTermBorrowingsWithoutInventingTotals() {
+        var result = parse("""
+            {"Liabilities":{"units":{"USD":[{"end":"2025-12-31","val":60,"form":"10-K","filed":"2026-02-01"}]}},
+             "ShortTermBorrowings":{"units":{"USD":[{"end":"2025-12-31","val":5,"form":"10-K","filed":"2026-02-01"}]}}}
+            """);
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(m -> m.getMetric().equals("liabilities") && m.getValue().compareTo(new BigDecimal("60")) == 0));
+        assertTrue(result.stream().anyMatch(m -> m.getMetric().equals("short_term_borrowings")));
+    }
+
+    @Test
     void prefersPreferredRevenuePerPeriodAndRetainsOlderFallbackHistory() {
         var result = parse("""
             {"RevenueFromContractWithCustomerExcludingAssessedTax":{"units":{"USD":[

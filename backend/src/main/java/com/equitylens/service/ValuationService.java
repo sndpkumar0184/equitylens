@@ -4,8 +4,6 @@ import com.equitylens.dto.TTMFinancialResponse;
 import com.equitylens.dto.ValuationResponse;
 import com.equitylens.entity.Company;
 import com.equitylens.entity.MarketData;
-import com.equitylens.providers.MarketDataProvider;
-import com.equitylens.repository.CompanyRepository;
 import com.equitylens.repository.MarketDataRepository;
 import org.springframework.stereotype.Service;
 
@@ -18,30 +16,23 @@ public class ValuationService {
 
     private static final int SCALE = 6;
 
-    private final CompanyRepository companyRepository;
+    private final CompanyService companyService;
     private final MarketDataRepository marketDataRepository;
     private final TTMFinancialService ttmFinancialService;
 
     public ValuationService(
-            CompanyRepository companyRepository,
+            CompanyService companyService,
             MarketDataRepository marketDataRepository,
             TTMFinancialService ttmFinancialService
     ) {
-        this.companyRepository = companyRepository;
+        this.companyService = companyService;
         this.marketDataRepository = marketDataRepository;
         this.ttmFinancialService = ttmFinancialService;
     }
 
     public ValuationResponse getValuation(String ticker) {
 
-        Company company =
-                companyRepository
-                        .findByTickerIgnoreCase(ticker)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Company not found: " + ticker
-                                )
-                        );
+        Company company = companyService.getCompany(ticker);
 
         MarketData marketData =
                 marketDataRepository

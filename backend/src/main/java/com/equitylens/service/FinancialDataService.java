@@ -8,7 +8,10 @@ import com.equitylens.repository.FinancialMetricRepository;
 import com.equitylens.sec.SecCompanyFacts;
 import com.equitylens.sec.SecFinancialDataParser;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -21,6 +24,8 @@ import java.util.stream.Collectors;
 public class FinancialDataService {
 
     private final CompanyRepository companyRepository;
+    private final CompanyService companyService;
+    private final TransactionTemplate transactions;
     private final FinancialMetricRepository financialMetricRepository;
     private final SecDataService secDataService;
     private final SecFinancialDataParser parser;
@@ -31,7 +36,11 @@ public class FinancialDataService {
             FinancialMetricRepository financialMetricRepository,
             SecDataService secDataService,
             SecFinancialDataParser parser,
-            FinancialMetricNormalizer normalizer) {
+            FinancialMetricNormalizer normalizer,
+            CompanyService companyService, PlatformTransactionManager transactionManager) {
+
+        this.companyService = companyService;
+        this.transactions = new TransactionTemplate(transactionManager);
 
         this.companyRepository = companyRepository;
         this.financialMetricRepository = financialMetricRepository;
@@ -49,44 +58,64 @@ public class FinancialDataService {
         return normalizer.normalize(raw);
     }
 
-    @Transactional
     public List<FinancialMetric> importCompanyFinancials(String ticker) {
-
-        Company company = companyRepository
-                .findByTickerIgnoreCase(ticker)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Company not found: " + ticker
-                        ));
-
-        /*
-         * Re-importing should replace the existing
-         * financial data for this company.
-         */
-        SecCompanyFacts facts =
-                secDataService.getCompanyFacts(company.getCik());
-
-        List<FinancialMetric> metrics =
-                parser.parse(facts, company);
-
-        if (metrics.isEmpty()) {
-            throw new IllegalStateException("No valid SEC financial observations for " + ticker);
-        }
-        financialMetricRepository.deleteByCompanyId(company.getId());
-        return financialMetricRepository.saveAll(metrics);
+        return loadFinancials(ticker, true);
     }
 
     public List<FinancialMetric> getCompanyFinancials(String ticker) {
+        return loadFinancials(ticker, false);
+    }
 
-        Company company = companyRepository
-                .findByTickerIgnoreCase(ticker)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Company not found: " + ticker
-                        ));
+    public List<FinancialMetric> getDashboardFinancials(String ticker, Set<String> metrics) {
+        return loadFinancials(ticker, false, metrics);
+    }
 
-        return financialMetricRepository
-                .findByCompanyIdOrderByPeriodEndDesc(company.getId());
+    private List<FinancialMetric> loadFinancials(String ticker, boolean force) {
+        return loadFinancials(ticker, force, null);
+    }
+
+    private List<FinancialMetric> loadFinancials(String ticker, boolean force, Set<String> dashboardMetrics) {
+        Company resolved = companyService.getCompany(ticker);
+        // Both readers and replace-imports lock the same company row across app instances.
+        return transactions.execute(status -> {
+            Company company = companyRepository.lockById(resolved.getId()).orElseThrow();
+            boolean upgradeMappings = dashboardMetrics != null
+                    && !Integer.valueOf(SecFinancialDataParser.MAPPING_VERSION).equals(company.getFinancialImportVersion());
+            ensureFinancials(company, force || upgradeMappings);
+            if (dashboardMetrics == null) {
+                return financialMetricRepository.findByCompanyIdOrderByPeriodEndDesc(company.getId());
+            }
+            LocalDate latest = financialMetricRepository.latestDashboardPeriod(company.getId(), "USD", dashboardMetrics);
+            if (latest == null) return List.of();
+            // Eight displayed annual periods plus prior-year comparison/cumulative derivation context.
+            // Query only dashboard metrics, USD, and a bounded reporting window, never the full history.
+            return financialMetricRepository.findByCompanyIdAndMetricInAndUnitAndPeriodEndGreaterThanEqualOrderByPeriodEndDesc(
+                    company.getId(), dashboardMetrics, "USD", latest.minusYears(10));
+        });
+    }
+
+    private void ensureFinancials(Company company, boolean force) {
+        long count = financialMetricRepository.countByCompanyId(company.getId());
+        boolean complete = count > 0 && (company.getFinancialImportCount() != null
+                ? company.getFinancialImportCount() == count
+                : financialMetricRepository.findMetricNames(company.getId())
+                    .containsAll(Set.of("revenue", "net_income", "cash", "assets")));
+        if (!force && complete) {
+            if (company.getFinancialImportCount() == null) company.setFinancialImportCount(count);
+            return;
+        }
+        SecCompanyFacts facts = secDataService.getCompanyFacts(company.getCik());
+        List<FinancialMetric> metrics = parser.parse(facts, company);
+        if (metrics.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
+                    "No supported SEC financial observations for " + company.getTicker());
+        }
+        // Existing importer: fetch and parse before replacing, atomically, only for this company.
+        financialMetricRepository.deleteByCompanyId(company.getId());
+        financialMetricRepository.flush();
+        financialMetricRepository.saveAll(metrics);
+        company.setFinancialImportCount((long) metrics.size());
+        company.setFinancialImportVersion(SecFinancialDataParser.MAPPING_VERSION);
     }
 
     public List<IncomeStatementResponse> getIncomeStatement(

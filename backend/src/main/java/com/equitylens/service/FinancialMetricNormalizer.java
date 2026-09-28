@@ -24,6 +24,14 @@ public class FinancialMetricNormalizer {
         metrics.stream().filter(SecObservationPolicy::isValid)
                 .forEach(m -> selected.merge(PeriodKey.of(m), m, SecObservationPolicy::latest));
         List<FinancialMetric> facts = new ArrayList<>(selected.values());
+        // Quarterly filings can also disclose trailing-year flows. They are not fiscal years.
+        // Use original observations so a later comparative filing cannot erase a 10-K anchor.
+        List<FinancialMetric> annualAnchors = metrics.stream().filter(SecObservationPolicy::isValid)
+                .filter(m -> SecObservationPolicy.isFlow(m.getMetric()))
+                .filter(m -> m.getForm().startsWith("10-K") && SecObservationPolicy.quarters(m) == 4)
+                .toList();
+        List<FinancialMetric> fiscalFacts = facts.stream()
+                .filter(m -> !isRollingYear(m, annualAnchors)).toList();
         List<NormalizedFinancialMetricResponse> result = new ArrayList<>();
         Map<PeriodKey, Candidate> quarters = new HashMap<>();
 
@@ -33,11 +41,13 @@ public class FinancialMetricNormalizer {
                 continue;
             }
             int length = SecObservationPolicy.quarters(fact);
-            if (length == 0) {
+            if (isRollingYear(fact, annualAnchors)) {
+                result.add(response(fact, "ROLLING_YEAR", fact.getPeriodStart(), fact.getValue()));
+            } else if (length == 0) {
                 result.add(response(fact, "UNKNOWN", fact.getPeriodStart(), fact.getValue()));
             } else if (length == 1) {
                 quarters.put(PeriodKey.of(fact), new Candidate(
-                        response(fact, quarterLabel(fact, facts), fact.getPeriodStart(), fact.getValue()),
+                        response(fact, quarterLabel(fact, fiscalFacts), fact.getPeriodStart(), fact.getValue()),
                         fact.getFilingDate(), true));
             } else {
                 result.add(response(fact, length == 4 ? "FY" : "YTD",
@@ -47,7 +57,7 @@ public class FinancialMetricNormalizer {
 
         // Subtract only adjacent cumulative periods with the exact same fiscal start and unit.
         // In particular, Q4 = FY - nine months; Q1/Q2 need not be present to derive Q4.
-        for (FinancialMetric total : facts) {
+        for (FinancialMetric total : fiscalFacts) {
             int length = SecObservationPolicy.quarters(total);
             if (!SecObservationPolicy.isFlow(total.getMetric()) || length < 2) continue;
             FinancialMetric previous = facts.stream()
@@ -76,6 +86,17 @@ public class FinancialMetricNormalizer {
                 .thenComparing(NormalizedFinancialMetricResponse::periodStart,
                         Comparator.nullsFirst(Comparator.naturalOrder())))
                 .toList();
+    }
+
+    private boolean isRollingYear(FinancialMetric fact, List<FinancialMetric> annualAnchors) {
+        if (!SecObservationPolicy.isFlow(fact.getMetric()) || SecObservationPolicy.quarters(fact) != 4
+                || !fact.getForm().startsWith("10-Q") || annualAnchors.isEmpty()) return false;
+        // Reject only when a confirmed fiscal-year end lies strictly inside this twelve-month window.
+        // This leaves partial datasets and true comparative fiscal years unchanged.
+        boolean matchesAnnual = annualAnchors.stream().anyMatch(a ->
+                a.getPeriodStart().equals(fact.getPeriodStart()) && a.getPeriodEnd().equals(fact.getPeriodEnd()));
+        return !matchesAnnual && annualAnchors.stream().anyMatch(a ->
+                a.getPeriodEnd().isAfter(fact.getPeriodStart()) && a.getPeriodEnd().isBefore(fact.getPeriodEnd()));
     }
 
     private static final Comparator<Candidate> CANDIDATE_ORDER = Comparator

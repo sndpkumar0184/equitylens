@@ -10,7 +10,7 @@ public class Company {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 10)
+    @Column(nullable = false, length = 10)
     private String cik;
 
     @Column(nullable = false, unique = true, length = 10)
@@ -22,6 +22,18 @@ public class Company {
     private String sector;
 
     private String industry;
+
+    private Integer financialImportVersion;
+
+    public Integer getFinancialImportVersion() { return financialImportVersion; }
+
+    public void setFinancialImportVersion(Integer version) { financialImportVersion = version; }
+
+    private Long financialImportCount;
+
+    public Long getFinancialImportCount() { return financialImportCount; }
+
+    public void setFinancialImportCount(Long count) { financialImportCount = count; }
 
     public Company() {
     }

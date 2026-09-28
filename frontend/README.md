@@ -1,6 +1,6 @@
 # EquityLens frontend
 
-Next.js App Router, React, TypeScript, and Tailwind CSS. The company dashboard defaults to META; use the ticker input or `/?ticker=META` to select a company already stored in the backend.
+Next.js App Router, React, TypeScript, and Tailwind CSS. Use the ticker search or `/company/{TICKER}` to select a company. `/` is a search landing page; existing `/?ticker=...` links redirect to the company route.
 
 ## Run locally
 
@@ -19,11 +19,11 @@ The default backend address is `http://localhost:8080`. To override it, add a se
 BACKEND_URL=http://localhost:8080
 ```
 
-Requests use a 15-second timeout and do not cache financial responses. The dashboard only reads existing data; it does not create companies or import financials.
+Requests use a 120-second timeout and do not cache financial responses. The backend resolves new tickers through the SEC directory and imports missing financial data on demand. Loading, unknown-company, and retryable error states are shown in the UI.
 
 ## Data presentation
 
-- Annual views use FY observations; quarterly views use Q1–Q4 and standalone QUARTER observations. YTD and unknown durations are excluded.
+- Annual views use FY observations; quarterly views use Q1–Q4 and standalone QUARTER observations. YTD, rolling-year observations, and unknown durations are excluded.
 - Cards use the latest selected statement. Cash/assets match its exact end date and USD unit; unavailable matches display a dash.
 - Charts and the table show up to eight reporting periods. Dates are reporting boundaries, not inferred fiscal-year labels.
 - Charts preserve negative values and gaps for unavailable observations. The table provides exact values.
@@ -41,3 +41,5 @@ npm test
 Vitest and React Testing Library cover period selection, missing values, and dashboard interactions. Use `npm run test:watch` during development.
 
 If a restricted environment blocks Turbopack worker ports, use `npm run build -- --webpack` (and `npm run dev -- --webpack`).
+
+See [ticker architecture and verification](../docs/ticker-driven-companies.md) for API contracts, database upgrades, and live integration commands.

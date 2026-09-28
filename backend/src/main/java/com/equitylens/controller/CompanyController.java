@@ -5,10 +5,10 @@ import com.equitylens.dto.CashFlowResponse;
 import com.equitylens.dto.IncomeStatementResponse;
 import com.equitylens.dto.NormalizedFinancialMetricResponse;
 import com.equitylens.entity.Company;
-import com.equitylens.entity.FinancialMetric;
+import com.equitylens.dto.CompanyResponse;
+import com.equitylens.dto.FinancialMetricResponse;
 import com.equitylens.service.CompanyService;
 import com.equitylens.service.FinancialDataService;
-import com.equitylens.service.SecDataService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,37 +18,34 @@ import java.util.List;
 public class CompanyController {
 
     private final CompanyService companyService;
-    private final SecDataService secDataService;
     private final FinancialDataService financialDataService;
 
     public CompanyController(
             CompanyService companyService,
-            SecDataService secDataService,
             FinancialDataService financialDataService) {
 
         this.companyService = companyService;
-        this.secDataService = secDataService;
         this.financialDataService = financialDataService;
     }
 
     @GetMapping("/{ticker}")
-    public Company getCompany(@PathVariable String ticker) {
-        return companyService.getCompany(ticker);
+    public CompanyResponse getCompany(@PathVariable String ticker) {
+        return CompanyResponse.from(companyService.getCompany(ticker));
     }
 
     @PostMapping
-    public Company createCompany(@RequestBody Company company) {
-        return companyService.saveCompany(company);
+    public CompanyResponse createCompany(@RequestBody Company company) {
+        return CompanyResponse.from(companyService.saveCompany(company));
     }
 
     @PostMapping("/{ticker}/financials/import")
-    public List<FinancialMetric> importFinancials(@PathVariable String ticker) {
-        return financialDataService.importCompanyFinancials(ticker);
+    public List<FinancialMetricResponse> importFinancials(@PathVariable String ticker) {
+        return financialDataService.importCompanyFinancials(ticker).stream().map(FinancialMetricResponse::from).toList();
     }
 
     @GetMapping("/{ticker}/financials")
-    public List<FinancialMetric> getFinancials(@PathVariable String ticker) {
-        return financialDataService.getCompanyFinancials(ticker);
+    public List<FinancialMetricResponse> getFinancials(@PathVariable String ticker) {
+        return financialDataService.getCompanyFinancials(ticker).stream().map(FinancialMetricResponse::from).toList();
     }
 
     @GetMapping("/{ticker}/financials/normalized")

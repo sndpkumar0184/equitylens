@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "financial_metrics")
+@Table(name = "financial_metrics", indexes = @Index(name = "idx_financial_dashboard", columnList = "company_id, metric, unit, period_end"))
 public class FinancialMetric {
 
     @Id

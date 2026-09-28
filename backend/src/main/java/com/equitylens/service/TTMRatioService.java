@@ -136,7 +136,7 @@ public class TTMRatioService {
          * Net Debt = Total Debt - Cash
          *
          * Short-term investments are not included yet
-         * because META's current SEC mapping does not
+         * because a company’s SEC mapping may not
          * consistently provide that metric.
          */
         BigDecimal netDebt = null;

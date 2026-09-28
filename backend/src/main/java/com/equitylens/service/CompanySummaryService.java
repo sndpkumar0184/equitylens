@@ -3,13 +3,10 @@ package com.equitylens.service;
 import com.equitylens.dto.CompanySummaryResponse;
 import com.equitylens.entity.Company;
 import com.equitylens.entity.FinancialMetric;
-import com.equitylens.repository.CompanyRepository;
-import com.equitylens.repository.FinancialMetricRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -18,31 +15,17 @@ import java.util.stream.Collectors;
 @Service
 public class CompanySummaryService {
 
-    private final CompanyRepository companyRepository;
-    private final FinancialMetricRepository financialMetricRepository;
+    private final CompanyService companyService;
+    private final FinancialDataService financialDataService;
 
-    public CompanySummaryService(
-            CompanyRepository companyRepository,
-            FinancialMetricRepository financialMetricRepository
-    ) {
-        this.companyRepository = companyRepository;
-        this.financialMetricRepository = financialMetricRepository;
+    public CompanySummaryService(CompanyService companyService, FinancialDataService financialDataService) {
+        this.companyService = companyService;
+        this.financialDataService = financialDataService;
     }
 
     public CompanySummaryResponse getSummary(String ticker) {
-
-        Company company = companyRepository
-                .findByTickerIgnoreCase(ticker)
-                .orElseThrow(() ->
-                        new RuntimeException("Company not found: " + ticker));
-
-        List<FinancialMetric> metrics = financialMetricRepository
-                .findAll()
-                .stream()
-                .filter(metric ->
-                        metric.getCompany() != null
-                                && metric.getCompany().getId().equals(company.getId()))
-                .toList();
+        Company company = companyService.getCompany(ticker);
+        List<FinancialMetric> metrics = financialDataService.getCompanyFinancials(ticker);
 
         if (metrics.isEmpty()) {
             throw new RuntimeException(

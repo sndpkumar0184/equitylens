@@ -2,10 +2,6 @@ package com.equitylens.service;
 
 import com.equitylens.dto.NormalizedFinancialMetricResponse;
 import com.equitylens.dto.TTMFinancialResponse;
-import com.equitylens.entity.Company;
-import com.equitylens.entity.FinancialMetric;
-import com.equitylens.repository.CompanyRepository;
-import com.equitylens.repository.FinancialMetricRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -17,42 +13,14 @@ import java.util.stream.Collectors;
 @Service
 public class TTMFinancialService {
 
-    private final CompanyRepository companyRepository;
-    private final FinancialMetricRepository financialMetricRepository;
-    private final FinancialMetricNormalizer normalizer;
+    private final FinancialDataService financialDataService;
 
-    public TTMFinancialService(
-            CompanyRepository companyRepository,
-            FinancialMetricRepository financialMetricRepository,
-            FinancialMetricNormalizer normalizer
-    ) {
-        this.companyRepository = companyRepository;
-        this.financialMetricRepository = financialMetricRepository;
-        this.normalizer = normalizer;
+    public TTMFinancialService(FinancialDataService financialDataService) {
+        this.financialDataService = financialDataService;
     }
 
     public List<TTMFinancialResponse> getTTM(String ticker) {
-
-        Company company = companyRepository
-                .findByTickerIgnoreCase(ticker)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Company not found: " + ticker
-                        ));
-
-        List<FinancialMetric> rawMetrics =
-                financialMetricRepository.findByCompanyIdOrderByPeriodEndDesc(company.getId());
-
-        if (rawMetrics.isEmpty()) {
-            throw new RuntimeException(
-                    "No financial data found for company: " + ticker
-            );
-        }
-
-        List<NormalizedFinancialMetricResponse> normalized =
-                normalizer.normalize(rawMetrics);
-
-        return calculateTTM(normalized);
+        return calculateTTM(financialDataService.getNormalizedFinancials(ticker));
     }
 
     private List<TTMFinancialResponse> calculateTTM(

@@ -10,8 +10,8 @@ import java.time.LocalDate;
         name = "market_prices",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_market_price_company_date",
-                        columnNames = {"company_id", "price_date"}
+                        name = "uk_market_price_company_date_source",
+                        columnNames = {"company_id", "price_date", "source"}
                 )
         },
         indexes = {
@@ -46,6 +46,35 @@ public class MarketPrice {
             scale = 6
     )
     private BigDecimal closePrice;
+
+    @Column(nullable = false, length = 32, columnDefinition = "varchar(32) default 'LEGACY'")
+    private String source = "LEGACY";
+    @Column(precision = 19, scale = 6)
+    private BigDecimal openPrice;
+    @Column(precision = 19, scale = 6)
+    private BigDecimal highPrice;
+    @Column(precision = 19, scale = 6)
+    private BigDecimal lowPrice;
+    @Column(precision = 19, scale = 6)
+    private BigDecimal adjustedClose;
+    private Long volume;
+
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
+    public BigDecimal getOpenPrice() { return openPrice; }
+    public void setOpenPrice(BigDecimal value) { openPrice = value; }
+    public BigDecimal getHighPrice() { return highPrice; }
+    public void setHighPrice(BigDecimal value) { highPrice = value; }
+    public BigDecimal getLowPrice() { return lowPrice; }
+    public void setLowPrice(BigDecimal value) { lowPrice = value; }
+    public BigDecimal getAdjustedClose() { return adjustedClose; }
+    public void setAdjustedClose(BigDecimal value) { adjustedClose = value; }
+    public Long getVolume() { return volume; }
+    public void setVolume(Long value) { volume = value; }
+
+    public com.equitylens.dto.DailyPrice toDailyPrice() {
+        return new com.equitylens.dto.DailyPrice(priceDate, openPrice, highPrice, lowPrice, closePrice, adjustedClose, volume);
+    }
 
     public MarketPrice() {
     }
