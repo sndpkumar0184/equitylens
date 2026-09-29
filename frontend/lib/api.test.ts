@@ -11,7 +11,7 @@ test("market uses its own ticker endpoint and failures are isolated", async () =
     .mockResolvedValueOnce({ ok: false, status: 503 });
   vi.stubGlobal("fetch", fetch);
   expect(await getMarket("AMZN")).toBe(payload);
-  expect(fetch.mock.calls[0][0]).toBe("http://backend.test:8080/api/companies/AMZN/market");
+  expect(fetch.mock.calls[0][0]).toBe("http://backend.test:8080/api/companies/AMZN/market?interval=DAILY");
   expect(await getMarket("META")).toBeNull();
 });
 

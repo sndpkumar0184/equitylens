@@ -3,7 +3,7 @@ package com.equitylens.service;
 import com.equitylens.dto.MarketDataResponse;
 import com.equitylens.entity.Company;
 import com.equitylens.entity.MarketData;
-import com.equitylens.providers.MarketDataProvider;
+import com.equitylens.providers.MarketQuoteProvider;
 import com.equitylens.repository.MarketDataRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,12 +13,12 @@ public class MarketDataService {
 
     private final CompanyService companyService;
     private final MarketDataRepository marketDataRepository;
-    private final MarketDataProvider marketDataProvider;
+    private final MarketQuoteProvider marketDataProvider;
 
     public MarketDataService(
             CompanyService companyService,
             MarketDataRepository marketDataRepository,
-            MarketDataProvider marketDataProvider
+            MarketQuoteProvider marketDataProvider
     ) {
         this.companyService = companyService;
         this.marketDataRepository = marketDataRepository;
@@ -30,7 +30,7 @@ public class MarketDataService {
 
         Company company = companyService.getCompany(ticker);
 
-        MarketDataProvider.MarketQuote quote =
+        MarketQuoteProvider.MarketQuote quote =
                 marketDataProvider.getQuote(
                         company.getTicker()
                 );

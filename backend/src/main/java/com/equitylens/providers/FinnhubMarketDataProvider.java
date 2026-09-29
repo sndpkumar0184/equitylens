@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 @Component
-public class FinnhubMarketDataProvider implements MarketDataProvider {
+public class FinnhubMarketDataProvider implements MarketQuoteProvider {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;

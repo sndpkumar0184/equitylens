@@ -41,6 +41,7 @@ class MarketHistoryIntegrationTest {
         company = new Company(); company.setTicker("MKT.TEST"); company.setCik("0000000001"); company.setName("Market test");
         companies.saveAndFlush(company);
         when(provider.source()).thenReturn("TEST_PROVIDER");
+        when(provider.supportedIntervals()).thenReturn(java.util.Set.of(com.equitylens.providers.MarketDataProvider.Interval.DAILY));
     }
     private DailyPrice price(LocalDate date, int close) {
         return new DailyPrice(date, BigDecimal.valueOf(close), BigDecimal.valueOf(close+10),
@@ -109,6 +110,24 @@ class MarketHistoryIntegrationTest {
         assertEquals(today.minusDays(1), result.latestTradingDate());
         service.getMarket("MKT.TEST", today.minusYears(3), today);
         verify(provider).getHistory("MKT.TEST", today.minusYears(3), today);
+    }
+
+    @Test void returnsBackendMonthlyCandlesAndRejectsUnavailableHourlyData() {
+        var rows = List.of(price(today.minusMonths(2).withDayOfMonth(3), 100),
+                price(today.minusMonths(1).withDayOfMonth(4), 120), price(today.minusDays(4), 120), price(today.minusDays(1), 130));
+        when(provider.getHistory(anyString(), any(), any())).thenReturn(rows);
+        var monthly = service.getMarket("MKT.TEST", today.minusMonths(3), today, com.equitylens.providers.MarketDataProvider.Interval.MONTHLY);
+        assertEquals(com.equitylens.providers.MarketDataProvider.Interval.MONTHLY, monthly.interval());
+        assertEquals(3, monthly.history().size());
+        assertEquals(today.withDayOfMonth(1), monthly.history().getLast().date());
+        assertEquals(0, BigDecimal.valueOf(120).compareTo(monthly.history().getLast().open()));
+        assertEquals(0, BigDecimal.valueOf(140).compareTo(monthly.history().getLast().high()));
+        assertEquals(0, BigDecimal.valueOf(110).compareTo(monthly.history().getLast().low()));
+        assertEquals(0, BigDecimal.valueOf(130).compareTo(monthly.history().getLast().close()));
+        assertEquals(2000L, monthly.history().getLast().volume());
+        var unsupported = assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service.getMarket("MKT.TEST", null, null, com.equitylens.providers.MarketDataProvider.Interval.HOURLY));
+        assertEquals(422, unsupported.getStatusCode().value());
     }
 
     @Test void endpointValidatesDateRangesAndIsTickerDriven() throws Exception {

@@ -4,7 +4,6 @@ import com.equitylens.dto.DailyPrice;
 import com.equitylens.service.Ticker;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
@@ -16,8 +15,8 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-@Component
-public class StashGammaDailyPriceProvider implements DailyPriceProvider {
+/** StashGamma's authentication, HTTP protocol, response parsing, and quota policy live here. */
+public class StashGammaMarketDataProvider implements DailyPriceProvider {
     private final RestClient client;
     private final ObjectMapper mapper;
     private final String apiKey;
@@ -25,7 +24,7 @@ public class StashGammaDailyPriceProvider implements DailyPriceProvider {
     private final Deque<Instant> calls = new ArrayDeque<>();
     private Instant blockedUntil = Instant.EPOCH;
 
-    public StashGammaDailyPriceProvider(RestClient.Builder builder, ObjectMapper mapper,
+    public StashGammaMarketDataProvider(RestClient.Builder builder, ObjectMapper mapper,
             @Value("${market.stashgamma.base-url:https://www.stashgamma.com/api/dataapi/v1}") String baseUrl,
             @Value("${market.stashgamma.api-key:}") String apiKey) {
         var factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
@@ -37,6 +36,9 @@ public class StashGammaDailyPriceProvider implements DailyPriceProvider {
     }
 
     public String source() { return "STASHGAMMA"; }
+
+    @Override
+    public Set<Interval> supportedIntervals() { return Set.of(Interval.DAILY); }
 
     @Override
     public synchronized List<DailyPrice> getHistory(String input, LocalDate from, LocalDate to) {

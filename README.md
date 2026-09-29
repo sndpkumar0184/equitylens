@@ -28,13 +28,14 @@ EquityLens brings company fundamentals and market history into one research work
 | Financial performance | Daily market data |
 | :--- | :--- |
 | Ticker-driven company research | Latest available daily closing price |
-| Annual and quarterly reporting views | Historical daily price chart |
+| Annual and quarterly reporting views | Interactive Japanese candlestick and volume chart |
 | Revenue, net income, and revenue growth | 52-week high and low |
 | Gross, operating, and net margins | 1-month, 3-month, 6-month, and 1-year price returns |
 | Operating cash flow, CapEx, and free cash flow | Cached prices with source and freshness information |
 | Cash, debt, assets, and liabilities | Explicit unavailable and stale-data states |
 
 Financial charts share the reporting periods used by the statement table. The Market section is independent of the annual/quarterly selector. Existing trailing-twelve-month calculations remain in the backend.
+Company research is split into Overview and Market tabs. Market history supports daily bars and backend-aggregated weekly/monthly/yearly bars; hourly bars are shown as unavailable while the selected provider lacks intraday data.
 
 ## Architecture
 
@@ -45,8 +46,9 @@ flowchart TD
     API --> Market[Market history + analytics]
     Financials --> Normalizer[SEC parser + period normalization]
     Normalizer --> SEC[SEC Company Facts]
-    Market --> Provider[DailyPriceProvider interface]
-    Provider --> StashGamma[StashGamma official EOD API]
+    Market --> Provider[MarketDataProvider interface]
+    Provider --> StashGamma[StashGammaMarketDataProvider]
+    Provider --> Future[Future market-data providers]
     Financials <--> DB[(PostgreSQL)]
     Market <--> DB
 ```
@@ -112,6 +114,7 @@ The first request may take longer while SEC financials or daily prices are impor
 | :--- | :--- | :--- |
 | `SEC_USER_AGENT` | Identifies SEC requests with a real contact address | Development placeholder |
 | `STASHGAMMA_API_KEY` | Authenticates daily-price requests | Unconfigured |
+| `MARKET_DATA_PROVIDER` | Selects historical market-price provider | `stashgamma` |
 | `BACKEND_URL` | Backend address used by Next.js server requests | `http://localhost:8080` |
 | `FINNHUB_API_KEY` | Existing optional Finnhub quote integration | Unconfigured |
 
@@ -123,6 +126,9 @@ curl http://localhost:8080/api/companies/AAPL/dashboard
 
 # Daily prices and market analytics
 curl http://localhost:8080/api/companies/AAPL/market
+
+# Backend-aggregated monthly candlesticks
+curl 'http://localhost:8080/api/companies/AAPL/market?interval=MONTHLY'
 
 # Limit the chart history; summary metrics still describe the latest available session
 curl 'http://localhost:8080/api/companies/AAPL/market?from=2026-01-01&to=2026-06-30'

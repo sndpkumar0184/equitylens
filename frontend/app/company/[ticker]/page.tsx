@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { Dashboard } from "@/components/dashboard";
 import { DashboardLoading } from "@/components/dashboard-loading";
-import { ApiError, getDashboard, getMarket } from "@/lib/api";
-import { MarketSection } from "@/components/market-section";
+import { ApiError, getDashboard } from "@/lib/api";
 import { companyPath, normalizeTicker } from "@/lib/ticker";
 
 async function CompanyDashboard({ ticker }: { ticker: string }) {
@@ -14,15 +13,7 @@ async function CompanyDashboard({ ticker }: { ticker: string }) {
     if (error instanceof ApiError && error.status === 404) notFound();
     throw error;
   }
-  return <><Dashboard key={ticker} {...data} />
-    <Suspense fallback={<p role="status" className="mt-8 text-sm text-slate-500">Loading market prices…</p>}>
-      <CompanyMarket ticker={ticker} />
-    </Suspense>
-  </>;
-}
-
-async function CompanyMarket({ ticker }: { ticker: string }) {
-  return <MarketSection ticker={ticker} data={await getMarket(ticker)} />;
+  return <Dashboard key={ticker} {...data} />;
 }
 
 export default async function CompanyPage({ params }: { params: Promise<{ ticker: string }> }) {

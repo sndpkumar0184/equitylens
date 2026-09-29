@@ -9,10 +9,10 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import static org.junit.jupiter.api.Assertions.*;
 
-class StashGammaDailyPriceProviderTest {
+class StashGammaMarketDataProviderTest {
     private final LocalDate from = LocalDate.of(2026, 7, 1), to = from.plusDays(7);
-    private StashGammaDailyPriceProvider provider() {
-        return new StashGammaDailyPriceProvider(RestClient.builder(), new ObjectMapper(), "https://provider.test", "test-key");
+    private StashGammaMarketDataProvider provider() {
+        return new StashGammaMarketDataProvider(RestClient.builder(), new ObjectMapper(), "https://provider.test", "test-key");
     }
     private String payload(String bars) { return "{\"symbol\":\"AAPL\",\"bars\":[" + bars + "]}"; }
     private final String row = """
@@ -46,7 +46,7 @@ class StashGammaDailyPriceProviderTest {
     }
 
     @Test void missingKeyDoesNotCallNetwork() {
-        var provider = new StashGammaDailyPriceProvider(RestClient.builder(), new ObjectMapper(), "https://provider.test", "");
+        var provider = new StashGammaMarketDataProvider(RestClient.builder(), new ObjectMapper(), "https://provider.test", "");
         assertEquals("NOT_CONFIGURED", assertThrows(DailyPriceProvider.Unavailable.class,
                 () -> provider.getHistory("AAPL", from, to)).status());
     }
@@ -63,12 +63,17 @@ class StashGammaDailyPriceProviderTest {
         });
         server.start();
         try {
-            var provider = new StashGammaDailyPriceProvider(RestClient.builder(), new ObjectMapper(),
+            var provider = new StashGammaMarketDataProvider(RestClient.builder(), new ObjectMapper(),
                     "http://127.0.0.1:" + server.getAddress().getPort(), "test-key");
             var error = assertThrows(DailyPriceProvider.Unavailable.class, () -> provider.getHistory("aapl", from, to));
             assertEquals("RATE_LIMITED", error.status()); assertEquals(120, error.retrySeconds());
             assertThrows(DailyPriceProvider.Unavailable.class, () -> provider.getHistory("META", from, to));
             assertEquals(1, calls.get());
         } finally { server.stop(0); }
+    }
+
+    @Test void exposesDailyAndAggregatedIntervalsButNotHourly() {
+        assertEquals(java.util.Set.of(MarketDataProvider.Interval.DAILY), provider().supportedIntervals());
+        assertFalse(provider().supportedIntervals().contains(MarketDataProvider.Interval.HOURLY));
     }
 }

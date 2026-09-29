@@ -17,9 +17,9 @@ export async function getDashboard(ticker: string): Promise<DashboardData> {
   return get<DashboardData>(`${encodeURIComponent(ticker)}/dashboard`);
 }
 
-export async function getMarket(ticker: string): Promise<MarketData | null> {
+export async function getMarket(ticker: string, interval: "DAILY" | "MONTHLY" | "YEARLY" = "DAILY"): Promise<MarketData | null> {
   try {
-    return await get<MarketData>(`${encodeURIComponent(ticker)}/market`);
+    return await get<MarketData>(`${encodeURIComponent(ticker)}/market?interval=${interval}`);
   } catch {
     // An independent market-provider outage must not take down SEC financials.
     return null;

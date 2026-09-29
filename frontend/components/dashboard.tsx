@@ -6,6 +6,7 @@ import type { DashboardData } from "@/lib/dashboard";
 import { DashboardCharts } from "./dashboard-charts";
 import { KpiCards } from "./kpi-cards";
 import { FinancialTable } from "./financial-table";
+import { CompanyTabs } from "./company-tabs";
 
 export function Dashboard({ company, annual, quarterly }: DashboardData) {
   const [frequency, setFrequency] = useState<Frequency>("annual");
@@ -22,6 +23,7 @@ export function Dashboard({ company, annual, quarterly }: DashboardData) {
       </div>
       <div className="text-sm text-slate-500 sm:text-right"><p className="font-medium text-slate-700">Financial overview</p><p className="mt-1">SEC company financials</p></div>
     </section>
+    <CompanyTabs ticker={company.ticker} active="overview" />
     <section aria-labelledby="overview-heading">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
         <div><h2 id="overview-heading" className="text-lg font-semibold">At a glance</h2><p className="mt-1 text-xs text-slate-500">{`${frequency === "annual" ? "Annual" : "Quarterly"} financials · Latest available values · USD`}</p></div>
