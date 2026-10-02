@@ -6,6 +6,8 @@
 
 Explore SEC financial statements, understand business performance, and put daily stock prices in context.
 
+**Overview · Market · AI research preview**
+
 ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?style=flat-square)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111111?style=flat-square)
@@ -13,7 +15,7 @@ Explore SEC financial statements, understand business performance, and put daily
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=flat-square)
 ![Status](https://img.shields.io/badge/status-active_development-6366F1?style=flat-square)
 
-[Explore the features](#what-you-can-explore) · [Run locally](#run-locally) · [Architecture](#architecture) · [Data principles](#data-principles)
+[Screenshots](#screenshots) · [Explore the features](#what-you-can-explore) · [Research examples](#research-examples) · [Run locally](#run-locally) · [Architecture](#architecture) · [Data principles](#data-principles)
 
 </div>
 
@@ -22,6 +24,35 @@ Explore SEC financial statements, understand business performance, and put daily
 EquityLens brings company fundamentals and market history into one research workspace. The backend handles importing, normalizing, storing, and calculating financial data. The frontend makes those results easy to explore.
 
 > **Development status:** The ticker-driven financial dashboard and StashGamma market layer are implemented and tested. EquityLens is under active development; public market-data display requires the provider authorization described below.
+
+## Screenshots
+
+Real captures of the running EquityLens application, using AAPL as an example. Financial observations and market values reflect the data available when captured; these images are examples, not live quotes.
+
+### Financial overview
+
+Company identity, annual/quarterly financial KPIs, reporting trends and statements in one workspace.
+
+![EquityLens AAPL financial overview with financial KPIs and reporting-period charts](docs/images/overview.png)
+
+### Market research
+
+Daily closing prices, OHLCV candlesticks, volume, price returns and data-source information. Use the interval controls to explore daily, weekly, monthly and yearly history.
+
+![EquityLens AAPL Market view with price statistics and an OHLCV candlestick chart](docs/images/market.png)
+
+### AI Assistant — local development preview
+
+A real local-model response backed by the `get_company` MCP tool, with the retrieved company profile expanded for inspection. The assistant is being developed locally; **its implementation is not part of this documentation-only publication**. The financial dashboard and Market screenshots show the existing application.
+
+![EquityLens AI Assistant showing an actual AAPL company-profile answer and the retrieved source data](docs/images/ai-assistant.png)
+
+<details>
+<summary>See the assistant on mobile</summary>
+
+<img src="docs/images/ai-assistant-mobile.png" alt="EquityLens AI Assistant mobile layout with company context, suggested research questions and an accessible chat input" width="390" />
+
+</details>
 
 ## What you can explore
 
@@ -36,6 +67,18 @@ EquityLens brings company fundamentals and market history into one research work
 
 Financial charts share the reporting periods used by the statement table. The Market section is independent of the annual/quarterly selector. Existing trailing-twelve-month calculations remain in the backend.
 Company research is split into Overview and Market tabs. Market history supports daily bars and backend-aggregated weekly/monthly/yearly bars; hourly bars are shown as unavailable while the selected provider lacks intraday data.
+
+## Research examples
+
+| Research question | Where to explore |
+| :--- | :--- |
+| How have AAPL's revenue and net income changed? | Overview → annual or quarterly trends |
+| Did operating margin improve alongside revenue growth? | Overview → profitability and growth charts |
+| What happened to AMZN's free cash flow? | Overview → cash flow and financial statements |
+| How did NVDA's price perform over the past year? | Market → price history and period returns |
+| Which filing periods support a financial trend? | Overview → reporting dates in the statement table |
+
+The local AI preview adds natural-language questions such as **“Why did margins fall?”**, **“Compare AAPL, MSFT and AMZN”**, and **“Show NVDA's revenue growth over the last five years.”** Company context is passed explicitly, and retrieved evidence remains inspectable. Model interpretation should be checked against that evidence.
 
 ## Architecture
 
@@ -202,3 +245,11 @@ equitylens/
 - **Free API access does not establish public redistribution rights.** StashGamma's [terms](https://www.stashgamma.com/terms) require permission for distribution and written permission for commercial use. Obtain the appropriate authorization before publishing its data to public users.
 
 EquityLens is under active development. The local database credentials and automatic schema updates are development defaults. No investment advice is provided.
+
+## MCP and local AI research assistant
+
+The screenshots above preview the local AI implementation: a read-only MCP interface inside the existing Spring Boot backend and a configurable Ollama provider. The assistant retrieves company information, financial metrics and market history through existing EquityLens services. It shares the existing PostgreSQL data and financial calculations with the dashboard.
+
+Overview and Market continue to use REST; normal dashboard requests do not depend on MCP. The model has no arbitrary SQL, filesystem or trade-execution tools. Unsupported hourly candles and missing metrics remain explicitly unavailable.
+
+This preview is not yet included in the published application code. Its local implementation and tests remain separate from this README/screenshots update. No paid cloud API is required; a compatible local model/runtime is needed for the assistant.
