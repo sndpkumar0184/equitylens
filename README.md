@@ -1,255 +1,329 @@
-<div align="center">
-
 # EquityLens
 
-### Company research, grounded in the numbers.
+EquityLens is an actively evolving financial research and analytics platform that brings together SEC financial data, historical market data, interactive dashboards, and tool-based research. The project emphasizes reliable data foundations and clear separation between ingestion, calculations, APIs, and presentation.
 
-Explore SEC financial statements, understand business performance, and put daily stock prices in context.
+## Overview
 
-**Overview · Market · AI research preview**
+Explore company fundamentals over time, compare financial performance with historical prices, and investigate questions through a local AI research assistant. The dashboard uses REST APIs; the assistant uses a separate, controlled MCP interface to the same services and database.
 
-![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?style=flat-square)
-![Next.js](https://img.shields.io/badge/Next.js-16-111111?style=flat-square)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=flat-square)
-![Status](https://img.shields.io/badge/status-active_development-6366F1?style=flat-square)
+## Key Capabilities
 
-[Screenshots](#screenshots) · [Explore the features](#what-you-can-explore) · [Research examples](#research-examples) · [Run locally](#run-locally) · [Architecture](#architecture) · [Data principles](#data-principles)
-
-</div>
-
----
-
-EquityLens brings company fundamentals and market history into one research workspace. The backend handles importing, normalizing, storing, and calculating financial data. The frontend makes those results easy to explore.
-
-> **Development status:** The ticker-driven financial dashboard and StashGamma market layer are implemented and tested. EquityLens is under active development; public market-data display requires the provider authorization described below.
-
-## Screenshots
-
-Real captures of the running EquityLens application, using AAPL as an example. Financial observations and market values reflect the data available when captured; these images are examples, not live quotes.
-
-### Financial overview
-
-Company identity, annual/quarterly financial KPIs, reporting trends and statements in one workspace.
-
-![EquityLens AAPL financial overview with financial KPIs and reporting-period charts](docs/images/overview.png)
-
-### Market research
-
-Daily closing prices, OHLCV candlesticks, volume, price returns and data-source information. Use the interval controls to explore daily, weekly, monthly and yearly history.
-
-![EquityLens AAPL Market view with price statistics and an OHLCV candlestick chart](docs/images/market.png)
-
-### AI Assistant — local development preview
-
-A real local-model response backed by the `get_company` MCP tool, with the retrieved company profile expanded for inspection. The assistant is being developed locally; **its implementation is not part of this documentation-only publication**. The financial dashboard and Market screenshots show the existing application.
-
-![EquityLens AI Assistant showing an actual AAPL company-profile answer and the retrieved source data](docs/images/ai-assistant.png)
-
-<details>
-<summary>See the assistant on mobile</summary>
-
-<img src="docs/images/ai-assistant-mobile.png" alt="EquityLens AI Assistant mobile layout with company context, suggested research questions and an accessible chat input" width="390" />
-
-</details>
-
-## What you can explore
-
-| Financial performance | Daily market data |
-| :--- | :--- |
-| Ticker-driven company research | Latest available daily closing price |
-| Annual and quarterly reporting views | Interactive Japanese candlestick and volume chart |
-| Revenue, net income, and revenue growth | 52-week high and low |
-| Gross, operating, and net margins | 1-month, 3-month, 6-month, and 1-year price returns |
-| Operating cash flow, CapEx, and free cash flow | Cached prices with source and freshness information |
-| Cash, debt, assets, and liabilities | Explicit unavailable and stale-data states |
-
-Financial charts share the reporting periods used by the statement table. The Market section is independent of the annual/quarterly selector. Existing trailing-twelve-month calculations remain in the backend.
-Company research is split into Overview and Market tabs. Market history supports daily bars and backend-aggregated weekly/monthly/yearly bars; hourly bars are shown as unavailable while the selected provider lacks intraday data.
-
-## Research examples
-
-| Research question | Where to explore |
-| :--- | :--- |
-| How have AAPL's revenue and net income changed? | Overview → annual or quarterly trends |
-| Did operating margin improve alongside revenue growth? | Overview → profitability and growth charts |
-| What happened to AMZN's free cash flow? | Overview → cash flow and financial statements |
-| How did NVDA's price perform over the past year? | Market → price history and period returns |
-| Which filing periods support a financial trend? | Overview → reporting dates in the statement table |
-
-The local AI preview adds natural-language questions such as **“Why did margins fall?”**, **“Compare AAPL, MSFT and AMZN”**, and **“Show NVDA's revenue growth over the last five years.”** Company context is passed explicitly, and retrieved evidence remains inspectable. Model interpretation should be checked against that evidence.
+- **SEC financial ingestion:** resolve company tickers and CIKs, retrieve Company Facts, and normalize annual and quarterly financial observations.
+- **Financial analytics:** historical revenue, cash flow, balance sheet metrics, growth, margins, and existing valuation calculations.
+- **Company dashboards:** searchable companies, financial charts, statement views, and company-specific navigation.
+- **Historical market analysis:** provider-agnostic retrieval and caching, daily/monthly/yearly price views, OHLC candles, and market summaries. Hourly history is explicitly unsupported by the current historical provider.
+- **Research assistant:** ten read-only MCP tools, explicit company context, local Ollama integration, and expandable data evidence. A running tool-capable model is required.
+- **Streaming subsystem — under development:** optional Alpaca/Tiingo adapters, canonical Kafka events, Spark trade aggregation, PostgreSQL analytics, and live dashboard updates. These components exist in the repository; production operation and live-provider validation remain ongoing work.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    Browser[Company dashboard · Next.js + React] --> API[Spring Boot REST API]
-    API --> Financials[Financial services]
-    API --> Market[Market history + analytics]
-    Financials --> Normalizer[SEC parser + period normalization]
-    Normalizer --> SEC[SEC Company Facts]
-    Market --> Provider[MarketDataProvider interface]
-    Provider --> StashGamma[StashGammaMarketDataProvider]
-    Provider --> Future[Future market-data providers]
-    Financials <--> DB[(PostgreSQL)]
-    Market <--> DB
+    Ticker[Ticker / CIK lookup] --> SEC[SEC Company Facts]
+    SEC --> Import[Spring SEC parser and transactional importer]
+    Import --> Financial[(PostgreSQL financial_metrics)]
+    Historical[StashGamma historical provider] --> History[Spring market history service]
+    History --> Prices[(PostgreSQL market_prices)]
+    Financial --> Services[Spring financial services and calculations]
+    Prices --> Services
+    Services --> REST[REST company/dashboard/market APIs]
+    REST --> UI[Next.js Overview and Market]
+    Services --> MCP[Read-only MCP tools]
+    MCP --> AI[Research orchestration / local Ollama]
+    AI --> Assistant[Next.js AI Assistant]
+    Alpaca[Alpaca WebSocket] --> Adapter[Realtime provider adapter / canonical normalization]
+    Tiingo[Tiingo WebSocket] --> Adapter
+    Adapter --> Raw[Kafka canonical trade/quote/bar/reference topics]
+    Raw --> Spark[Spark Structured Streaming: trades and reference prices]
+    Spark --> Analytics[(PostgreSQL realtime aggregates)]
+    Analytics --> AnalyticsService[MarketAnalyticsService]
+    AnalyticsService --> LiveREST[Realtime REST / persisted-state reads]
+    LiveREST --> UI
+    Spark --> Derived[Kafka derived analytics topic]
+    Derived --> Consumer[Spring MarketAnalyticsConsumer]
+    Consumer --> Hub[MarketLiveHub: coalesce and read persisted state]
+    AnalyticsService --> Hub
+    Hub --> SSE[SSE / Next.js server proxy]
+    SSE --> UI
+    Raw -. inspect .-> Kafbat[Kafbat local development UI]
+    Derived -. inspect .-> Kafbat
 ```
 
-- **Financial data:** SEC Company Facts → existing importer → normalized observations → statements and TTM calculations.
-- **Market data:** replaceable daily-price provider → persisted OHLCV observations → backend analytics → Market API.
-- **Presentation:** Next.js fetches backend responses on the server. Provider credentials stay in the backend.
+There are three independent data paths:
 
-The historical-price integration is separate from the existing Finnhub quote integration. SEC services do not fetch stock prices.
+| Request/data | Actual processing | Kafka / Spark dependency |
+| --- | --- | --- |
+| `/api/companies/{ticker}/dashboard` | `DashboardController` → `DashboardService` → `CompanyService` / `FinancialDataService` → PostgreSQL → financial normalization/calculations | None. Missing/outdated SEC imports are fetched, parsed and persisted synchronously before returning. |
+| `/api/companies/{ticker}/market` | `MarketHistoryController` → `MarketHistoryService` → `MarketDataProvider` / StashGamma → PostgreSQL price cache | None. Historical prices remain separate from realtime events. |
+| Realtime provider events | `RealTimeConfiguration` → provider adapter → `CanonicalKafkaPublisher` → Kafka → `streaming/job.py` → PostgreSQL aggregates / derived Kafka notifications | Required for new realtime analytics, not for ordinary financial reads. |
+| `/api/market/realtime/{symbol}` | `MarketRealtimeController` → `MarketAnalyticsService` → `MarketAnalyticsRepository` → PostgreSQL | Reads durable state; does not query Kafka or trigger ingestion. |
 
-## Run locally
+For AMZN, a complete cached SEC import is read directly from `financial_metrics`.
+Requesting its dashboard does **not** produce a Kafka event or submit a Spark job.
+The LLM interprets service/tool results; deterministic financial and streaming
+calculations stay in Spring and Spark.
 
-### Prerequisites
+The optional realtime subsystem uses Kafka 4.0.2 in single-node KRaft mode and
+Spark 4.0.3 with the Kafka SQL connector. Local Spark uses `local[2]`, four shuffle
+partitions and five-second triggers. It is not a distributed production cluster.
 
-- Java **21**
-- Node.js **24** recommended, with npm
-- Docker with Docker Compose
-- A free [StashGamma API key](https://www.stashgamma.com/developer-docs) for market prices
+| Kafka topic | Producer | Consumer / result |
+| --- | --- | --- |
+| `equitylens.market.trade.v1` | Canonical provider adapter or explicit synthetic replay | Spark validation, one-/five-minute trade OHLCV and rolling analytics |
+| `equitylens.market.quote.v1` | Canonical provider adapter | Retained transport; no processing consumer implemented |
+| `equitylens.market.bar.v1` | Canonical provider adapter | Retained transport; no processing consumer implemented |
+| `equitylens.market.reference.v1` | Canonical provider adapter | Spark latest reference state |
+| `equitylens.analytics.market.v1` | Spark sink | Spring notifications; persisted state is delivered through SSE |
 
-The Gradle wrapper is included; no separate Gradle installation is needed.
+Topics default to four partitions, replication factor one and 24-hour retention.
+Keys are normalized symbols. Ordering is per partition, not global. Version-1
+JSON events preserve event ID/time, receipt time, provider/feed and typed data;
+raw provider protocols and credentials are not application payloads.
 
-### 1. Clone and start PostgreSQL
+Spark uses a two-minute event-time watermark and bounded event-ID deduplication.
+Finalized trade windows produce OHLCV and VWAP (`Σ price×quantity / Σ quantity`).
+Rolling metrics include one-/five-minute percentage returns, five-minute volume
+and VWAP, sample volatility of five consecutive log returns, and current-minute
+volume divided by the previous 20-minute mean. A ratio of at least three marks
+unusual volume. Incomplete histories return null metrics; feeds are not merged.
+
+Durable tables are `realtime_market_bar`, `realtime_market_analytics`, and
+`realtime_reference_state`. Source/feed/synthetic identity and deterministic
+window keys support idempotent upserts. Raw ticks are retained in Kafka rather
+than written to these tables. PostgreSQL commits and derived Kafka publication
+are not atomic; retries can duplicate notifications without duplicating rows.
+Separate checkpoint directories under `SPARK_CHECKPOINT_ROOT` preserve source
+progress and state. Failed sinks require operational recovery/restart; no claim
+of end-to-end exactly-once delivery is made.
+
+Live-provider validation remains ongoing. The verified development workload was
+explicitly synthetic; running containers and passing fixture tests do not prove
+an entitled Alpaca/Tiingo feed is active. The implementation described here is
+in the development working tree; documentation publication does not imply that
+all parallel application changes have been committed.
+
+## Technology Stack
+
+| Area | Technologies |
+| --- | --- |
+| Backend | Java 21, Spring Boot 4, Gradle, Spring MVC, JPA |
+| Storage | PostgreSQL 17 |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, Lightweight Charts |
+| Data | SEC EDGAR Company Facts, market provider abstraction, StashGamma historical integration |
+| Optional streaming | Kafka 4, Spark 4 Structured Streaming, Python, Alpaca/Tiingo adapters |
+| Research | Official MCP Java SDK, provider abstraction, local Ollama tool calling |
+| Testing | JUnit/Spring Boot tests, Vitest, React Testing Library, Python unittest |
+
+## Engineering Focus
+
+The project separates provider integrations from application services, centralizes financial normalization and calculations, and uses bounded API responses with explicit missing-data states. Tests cover financial behavior, market capabilities, tool validation, and UI interactions. Streaming work explores event identity, late data, durable checkpoints, and replay-safe storage. AI access is limited to defined tools rather than unrestricted database or filesystem access.
+
+## Current Status
+
+EquityLens is actively evolving. New capabilities and architectural improvements are added as the data platform and research experience develop.
+
+| Area | Status |
+| --- | --- |
+| SEC ingestion and financial dashboards | Implemented |
+| Historical market dashboard and provider abstraction | Implemented; requires provider credentials |
+| MCP tools and assistant UI | Implemented |
+| Local LLM integration | Implemented; requires an installed runtime/model |
+| Kafka ingestion and Spark analytics | Under development; optional implementation present |
+| Live-provider and production streaming validation | In progress |
+
+## Screenshots
+
+These are captures of the application, not mockups. Data and available features depend on the configured providers and runtime.
+
+### Financial overview
+
+![Company financial overview](docs/images/overview.png)
+
+### Historical market dashboard
+
+![Market analysis and price history](docs/images/market.png)
+
+### Company research assistant
+
+![Company-context research assistant](docs/images/ai-assistant.png)
+
+<details>
+<summary>Mobile assistant view</summary>
+
+![Responsive assistant](docs/images/ai-assistant-mobile.png)
+
+</details>
+
+Example research questions include “Analyze AAPL's financial performance,” “Compare AAPL and NVDA,” and “What happened to AMZN's free cash flow?” Answers depend on available EquityLens data and local model capabilities.
+
+## Local Development
+
+Prerequisites: Java 21, Node.js with npm, Docker Compose, and PostgreSQL. Ollama is optional for research; Kafka/Spark are optional for streaming.
 
 ```bash
-git clone https://github.com/sndpkumar0184/equitylens.git
-cd equitylens
+cp .env.example .env
+# Fill in local configuration; never commit .env.
 docker compose up -d postgres
 ```
 
-The development database runs on `localhost:5432`. Its name, username, and development password are configured in `docker-compose.yml` and `backend/src/main/resources/application.properties`.
-
-### 2. Start the backend
+In separate terminals, from the repository root:
 
 ```bash
+set -a
+source .env
+set +a
 cd backend
-export SEC_USER_AGENT="EquityLens your-email@example.com"
-read -rsp "StashGamma API key: " STASHGAMMA_API_KEY
-export STASHGAMMA_API_KEY
 ./gradlew bootRun
 ```
 
-The API runs at **http://localhost:8080**. Hibernate and the idempotent SQL initialization scripts apply the development schema updates at startup.
-
-The market key is optional for starting the application. Without it, the financial dashboard still works and market values are unavailable. Never commit API keys or put them in `NEXT_PUBLIC_*` variables.
-
-### 3. Start the frontend
-
-In a second terminal:
-
 ```bash
-cd equitylens/frontend
+cd frontend
+cp .env.example .env.local
 npm ci
-BACKEND_URL=http://localhost:8080 npm run dev
+npm run dev
 ```
 
-Open **http://localhost:3000** and search for a ticker, or visit `/company/META`, `/company/AAPL`, or `/company/AMZN`.
+Open http://localhost:3000. See [development setup](docs/development.md), [assistant configuration](docs/ai-assistant.md), and [optional streaming setup](docs/streaming.md). Provider credentials remain on the server.
 
-The first request may take longer while SEC financials or daily prices are imported. Later requests reuse persisted data.
+## Verify every stage locally
 
-### Configuration
-
-| Variable | Purpose | Default |
-| :--- | :--- | :--- |
-| `SEC_USER_AGENT` | Identifies SEC requests with a real contact address | Development placeholder |
-| `STASHGAMMA_API_KEY` | Authenticates daily-price requests | Unconfigured |
-| `MARKET_DATA_PROVIDER` | Selects historical market-price provider | `stashgamma` |
-| `BACKEND_URL` | Backend address used by Next.js server requests | `http://localhost:8080` |
-| `FINNHUB_API_KEY` | Existing optional Finnhub quote integration | Unconfigured |
-
-## API examples
+Start PostgreSQL and the backend first so its realtime schema is initialized.
+Configure `.env` and `.env.realtime` with your existing local database settings;
+never commit credentials. The realtime file is a Compose env file and must not
+be sourced as shell code (some values contain spaces).
 
 ```bash
-# Consolidated financial dashboard
-curl http://localhost:8080/api/companies/AAPL/dashboard
-
-# Daily prices and market analytics
-curl http://localhost:8080/api/companies/AAPL/market
-
-# Backend-aggregated monthly candlesticks
-curl 'http://localhost:8080/api/companies/AAPL/market?interval=MONTHLY'
-
-# Limit the chart history; summary metrics still describe the latest available session
-curl 'http://localhost:8080/api/companies/AAPL/market?from=2026-01-01&to=2026-06-30'
-
-# Existing normalized SEC observations and TTM financials
-curl http://localhost:8080/api/companies/AAPL/financials/normalized
-curl http://localhost:8080/api/companies/AAPL/financials/ttm
+# From the repository root, after configuring environment files:
+docker compose --env-file .env --env-file .env.realtime \
+  -f docker-compose.yml -f docker-compose.realtime.yml config --quiet
+docker compose --env-file .env --env-file .env.realtime \
+  -f docker-compose.yml -f docker-compose.realtime.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.realtime.yml ps
 ```
 
-`GET /api/companies/{ticker}/market` returns company identity, source, freshness status, latest close/date, 52-week extremes, four price returns, and daily OHLCV history. Historical bounds use ISO dates and cannot extend into the future or beyond the supported 15-year window.
+Export backend provider settings separately before starting Java. For live data,
+set `REALTIME_ENABLED=true`, `REALTIME_LIVE_ENABLED=true`, an explicit symbol list,
+provider credentials and matching analytics provider/feed. Do not place secrets
+in `NEXT_PUBLIC_` variables. Use `bash scripts/run-backend.sh --server.port=8080`
+for an immutable executable-JAR copy, or the existing `./gradlew bootRun` workflow.
+In a separate frontend terminal, use
+`BACKEND_URL=http://127.0.0.1:8080 npm run dev -- --port 3000`.
 
-## Data principles
+| Stage | Check | Evidence of success |
+| --- | --- | --- |
+| Infrastructure | Compose `ps` | Kafka healthy; PostgreSQL, Spark and Kafbat running |
+| Provider | `GET /api/market/realtime/AMZN` → `ingestion` | `LIVE`, increasing received/normalized counts; no publish failures. `DISABLED` means ingestion is off. |
+| Kafka input | Kafbat → Topics → trade/reference topic → Messages | New canonical events, symbol key, actual provider/feed and event timestamp |
+| Partitioning | Kafbat → topic → Partitions | Partition IDs, leaders, beginning/end offsets and in-sync replicas |
+| Spark | http://localhost:4040 → Structured Streaming | Running queries and new input batches/jobs when new events arrive |
+| Durable bars | Query `realtime_market_bar` | Finalized one-/five-minute OHLCV with matching source/feed |
+| Durable metrics | Query `realtime_market_analytics` | Rolling statistics; nulls are expected during warmup or gaps |
+| Derived Kafka output | Kafbat → `equitylens.analytics.market.v1` | Versioned `MARKET_ANALYTICS` events after persistence |
+| Spring notifications | Kafbat → Consumers | Active `equitylens-live-<instance-id>` groups approach topic end offsets |
+| REST | `/api/market/realtime/AMZN` | Matching persisted `bar`, `analytics`, provider/feed and timestamps |
+| SSE | `/api/market/realtime/AMZN/events` | `market` events on derived changes and heartbeat comments |
+| Browser | `/company/AMZN/market` | Historical prices plus realtime state/source labels and explicit synthetic/stale states |
+| Independent financial path | `/api/companies/AMZN/dashboard` | Actual annual/quarterly financial metrics even when realtime ingestion is off |
 
-**Keep periods comparable.** Annual, quarterly, year-to-date, and trailing-year observations are distinguished. Balance-sheet values retain their reporting dates.
+### Kafka development UI
 
-**Keep missing values missing.** Unsupported SEC tags, incomplete debt components, insufficient price history, and provider failures produce unavailable values rather than invented zeros.
+Open **http://localhost:8081** and select **EquityLens Local**. The official pinned
+image is `ghcr.io/kafbat/kafka-ui:v1.5.0`. Kafbat uses Docker service address
+`kafka:29092`; host clients use `localhost:9092`. It is loopback-only, read-only,
+preconfigured on restart, and independent of the customer-facing Next.js UI.
+No application service depends on this observer.
 
-**Calculate in the backend.** Margins, growth, cash flow, TTM values, and market returns are computed before data reaches the UI.
+Select **Topics → equitylens.market.trade.v1 → Partitions**, then **Messages**.
+Choose partitions and earliest/latest/offset seek, expand a record, and inspect
+its key and JSON value. Confirm `key = symbol`, `schemaVersion = 1`,
+`eventType = TRADE`, `data.price`, `data.quantity`, and source `provider` / `feed`.
+Synthetic events must say `SYNTHETIC`; they are not evidence of live provider data.
+Empty quote/bar/reference topics are legitimate when the provider does not emit
+them. End offsets are next-record positions, not retained-message counts.
+Expired records cannot be browsed after retention.
 
-**Make market semantics visible.** The latest stock price is a daily close, not a live quote. Returns compare provider closes with the latest available observation on or before the calendar target, within seven days. They exclude dividend reinvestment. StashGamma's documented API does not establish split/dividend adjustment semantics, so adjusted close is left unavailable.
+Kafbat shows conventional Spring group offsets/lag. Spark Structured Streaming
+uses durable checkpoint offsets instead of conventional committed group offsets;
+do not invent a Spark group or interpret a missing group as disconnection.
+Use Spark's **Structured Streaming** tab, progress logs and checkpoint state.
+A caught-up query can remain running with no new jobs. Event-time windows need
+watermark advancement, not arbitrary sleeps, before final results appear.
 
-**Cache responsibly.** Successful market imports are reused for six hours when coverage is sufficient. Empty results and failures also have retry windows. Corrected observations are upserted; unsuccessful refreshes preserve cached prices. No scheduled refresh job runs in this iteration.
+### Inspect persistence and API output
 
-## Checks and production build
+```bash
+docker compose exec postgres sh -lc \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
 
-PostgreSQL must be running for backend integration tests. Test data changes are rolled back.
+```sql
+SELECT symbol, provider, feed, synthetic, interval, window_start,
+       open, high, low, close, volume, vwap
+FROM realtime_market_bar
+WHERE symbol = 'AMZN'
+ORDER BY window_start DESC LIMIT 10;
+
+SELECT symbol, provider, feed, synthetic, window_start,
+       return_1m_pct, return_5m_pct, rolling_volume, rolling_vwap,
+       volatility_pct, volume_ratio, anomaly
+FROM realtime_market_analytics
+WHERE symbol = 'AMZN'
+ORDER BY window_start DESC LIMIT 10;
+
+SELECT * FROM realtime_reference_state WHERE symbol = 'AMZN';
+```
+
+```bash
+curl -fsS http://localhost:8080/api/companies/AMZN/dashboard | python3 -m json.tool
+curl -fsS http://localhost:8080/api/market/realtime/AMZN | python3 -m json.tool
+curl -N http://localhost:8080/api/market/realtime/AMZN/events
+docker compose -f docker-compose.yml -f docker-compose.realtime.yml logs --tail=100 spark
+```
+
+Repeat company/dashboard/market checks for META, AAPL and NVDA. An unknown ticker
+should return 404. A connected SSE session proves browser/backend connectivity,
+not provider activity. Latest realtime reads filter by configured source and a
+recent time range; older database rows can exist while the API reports `NO_DATA`.
+
+### Verify without live markets
+
+Only in an explicitly synthetic development configuration, set Spark
+`STREAMING_ALLOW_SYNTHETIC=true` and select `SYNTHETIC` / `FIXTURE` with
+`REALTIME_ANALYTICS_SYNTHETIC=true` for backend analytics reads. Restart the
+configured components to apply environment changes, then:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.realtime.yml exec -T spark \
+  python3 /opt/equitylens/replay.py --allow-synthetic --current-time
+```
+
+This publishes the existing canonical fixture with explicit synthetic metadata,
+preserving relative ordering and duplicate scenarios. Check Kafka, Spark batches,
+PostgreSQL and REST in that order. Never use this configuration as live-market
+financial evidence or mix its identity with real-provider aggregates.
+
+## Testing
 
 ```bash
 cd backend
-./gradlew test build
+./gradlew test --rerun-tasks build
 ```
 
 ```bash
 cd frontend
 npm run lint
 npm test
-npm run build -- --webpack
 npm exec tsc -- --noEmit
-BACKEND_URL=http://localhost:8080 npm run start
+npm run build -- --webpack
 ```
 
-The webpack option is useful in restricted environments where Turbopack cannot bind its local worker ports. Both builds use the existing Next.js application.
+Current execution results and environment limitations are recorded in [verification](docs/verification.md). Historical subsystem checks remain documented separately and do not imply that every current integration has been verified live.
 
-## Repository map
+## Roadmap
 
-```text
-equitylens/
-├── backend/
-│   ├── src/main/java/com/equitylens/
-│   │   ├── controller/     REST endpoints
-│   │   ├── dto/            API and normalized data contracts
-│   │   ├── entity/         Persisted companies, financials, and prices
-│   │   ├── providers/      Market-data adapters
-│   │   ├── repository/     Database access
-│   │   ├── sec/            SEC parsing and observation rules
-│   │   └── service/        Imports, normalization, and calculations
-│   ├── src/main/resources/db/
-│   └── src/test/
-├── frontend/
-│   ├── app/                Routes and server-side data loading
-│   ├── components/         Dashboard, charts, tables, and search
-│   └── lib/                API clients, types, and formatting
-├── docs/                   Implementation notes
-└── docker-compose.yml      Local PostgreSQL
-```
+- Validate streaming adapters against entitled live feeds and exercise recovery scenarios.
+- Extend operational monitoring, deployment authentication, and production infrastructure configuration.
+- Improve financial source lineage and research answer quality.
+- Expand market-provider capabilities while preserving the existing service interface.
 
-## Sources and public deployment
-
-- [SEC EDGAR APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces) supply company financial observations.
-- [StashGamma Developer API](https://www.stashgamma.com/developer-docs) supplies daily market prices. Its free tier currently lists 300 requests/hour, 800/day, and 4,000/week.
-- **Free API access does not establish public redistribution rights.** StashGamma's [terms](https://www.stashgamma.com/terms) require permission for distribution and written permission for commercial use. Obtain the appropriate authorization before publishing its data to public users.
-
-EquityLens is under active development. The local database credentials and automatic schema updates are development defaults. No investment advice is provided.
-
-## MCP and local AI research assistant
-
-The screenshots above preview the local AI implementation: a read-only MCP interface inside the existing Spring Boot backend and a configurable Ollama provider. The assistant retrieves company information, financial metrics and market history through existing EquityLens services. It shares the existing PostgreSQL data and financial calculations with the dashboard.
-
-Overview and Market continue to use REST; normal dashboard requests do not depend on MCP. The model has no arbitrary SQL, filesystem or trade-execution tools. Unsupported hourly candles and missing metrics remain explicitly unavailable.
-
-This preview is not yet included in the published application code. Its local implementation and tests remain separate from this README/screenshots update. No paid cloud API is required; a compatible local model/runtime is needed for the assistant.
+See [contributing](CONTRIBUTING.md), [financial data behavior](docs/ticker-driven-companies.md), and [historical market design](docs/market-data-verification.md).
