@@ -14,6 +14,34 @@ node_modules/
 .env
 .env.*
 !.env.example
+!.env*.example
+
+# Local tooling and assistant instructions (not application inputs)
+[Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd]
+[Cc][Ll][Aa][Uu][Dd][Ee].[Mm][Dd]
+.codex/
+.agents/
+.aws/
+.git-credentials
+.netrc
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python and streaming runtime artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+spark-warehouse/
+metastore_db/
+derby.log
+checkpoints/
+*.log
 
 # OS
 .DS_Store

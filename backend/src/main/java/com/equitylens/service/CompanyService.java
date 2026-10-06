@@ -26,6 +26,14 @@ public class CompanyService {
         });
     }
 
+    public java.util.List<com.equitylens.dto.CompanyResponse> searchCompanies(String query) {
+        if (query == null || query.isBlank() || query.length() > 80)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use a search query of 1–80 characters");
+        return companyRepository.findByTickerContainingIgnoreCaseOrNameContainingIgnoreCaseOrderByTickerAsc(
+                query.trim(), query.trim(), org.springframework.data.domain.PageRequest.of(0, 20))
+                .stream().map(com.equitylens.dto.CompanyResponse::from).toList();
+    }
+
     public Company saveCompany(Company company) {
         // Preserve the existing endpoint, but resolve identity through SEC and never overwrite it from input.
         Company stored = getCompany(company.getTicker());

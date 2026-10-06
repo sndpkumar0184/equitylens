@@ -18,6 +18,9 @@ repositories {
 }
 
 dependencies {
+	implementation 'org.apache.kafka:kafka-clients:4.0.2'
+	implementation 'io.modelcontextprotocol.sdk:mcp-core:2.0.1'
+	implementation 'io.modelcontextprotocol.sdk:mcp-json-jackson3:2.0.1'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
@@ -32,4 +35,12 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// Explicit live verification, separate from the deterministic unit/integration suite.
+tasks.register('mcpSmokeTest', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.equitylens.mcp.McpSmokeMain'
+    args providers.gradleProperty('mcpUrl').getOrElse('http://127.0.0.1:8080')
 }

@@ -27,7 +27,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = {"realtime.live.enabled=true", "realtime.kafka.bootstrap=127.0.0.1:1"})
 @Transactional
 class DashboardIntegrationTest {
     @Autowired CompanyService companies;
@@ -37,9 +37,9 @@ class DashboardIntegrationTest {
     @MockitoBean SecDataService sec;
 
     @ParameterizedTest
-    @ValueSource(strings = {"META", "AAPL", "AMZN"})
+    @ValueSource(strings = {"META", "AAPL", "AMZN", "NVDA"})
     void dashboardUsesRequestedCompanyAndBoundedDatabaseQuery(String ticker) throws Exception {
-        String cik = switch (ticker) { case "META" -> "0001326801"; case "AAPL" -> "0000320193"; default -> "0001018724"; };
+        String cik = switch (ticker) { case "META" -> "0001326801"; case "AAPL" -> "0000320193"; case "NVDA" -> "0001045810"; default -> "0001018724"; };
         when(sec.resolveTicker(ticker)).thenReturn(new SecDataService.SecCompany(ticker, cik, ticker + " Company"));
         Company company = companies.getCompany(ticker);
         metrics.deleteByCompanyId(company.getId());

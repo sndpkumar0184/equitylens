@@ -1,0 +1,78 @@
+# Layer over the existing compose file: docker compose -f docker-compose.yml -f docker-compose.realtime.yml ...
+services:
+  kafka:
+    image: apache/kafka:4.0.2
+    ports:
+      - "127.0.0.1:9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_RETENTION_HOURS: ${KAFKA_RETENTION_HOURS:-24}
+    volumes:
+      - realtime_kafka:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:29092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+  kafka-topics:
+    image: apache/kafka:4.0.2
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        for topic in equitylens.market.trade.v1 equitylens.market.quote.v1 equitylens.market.bar.v1 equitylens.market.reference.v1 equitylens.analytics.market.v1; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic "$$topic" --partitions "$${PARTITIONS}" --replication-factor 1 --config retention.ms="$${RETENTION_MS}"
+        done
+    environment:
+      PARTITIONS: ${KAFKA_PARTITIONS:-4}
+      RETENTION_MS: ${KAFKA_RETENTION_MS:-86400000}
+  kafbat-ui:
+    image: ghcr.io/kafbat/kafka-ui:v1.5.0
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: EquityLens Local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_READONLY: "true"
+      DYNAMIC_CONFIG_ENABLED: "false"
+      GITHUB_RELEASE_INFO_ENABLED: "false"
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx384m"
+    # Optional observer: no application service depends on this container.
+  spark:
+    build: ./streaming
+    depends_on:
+      kafka-topics:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      STREAMING_DATABASE_URL: ${STREAMING_DATABASE_URL:-postgresql://${POSTGRES_USER:-equitylens}:${POSTGRES_PASSWORD:-equitylens_dev}@postgres:5432/${POSTGRES_DB:-equitylens}}
+      SPARK_CHECKPOINT_ROOT: ${SPARK_CHECKPOINT_ROOT:-/var/lib/equitylens/checkpoints}
+      SPARK_WATERMARK: ${SPARK_WATERMARK:-2 minutes}
+      SPARK_MAX_OFFSETS: ${SPARK_MAX_OFFSETS:-10000}
+      STREAMING_ALLOW_SYNTHETIC: ${STREAMING_ALLOW_SYNTHETIC:-false}
+    volumes:
+      - realtime_checkpoints:/var/lib/equitylens/checkpoints
+    ports:
+      - "127.0.0.1:4040:4040"
+volumes:
+  realtime_kafka:
+  realtime_checkpoints:

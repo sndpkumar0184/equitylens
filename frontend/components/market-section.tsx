@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import type { MarketData, MarketInterval } from "@/lib/market";
 import { dateLabel, money } from "@/lib/financials";
 import { percent } from "@/lib/dashboard";
+import { RealtimeMarket } from "./realtime-market";
 import { CandlestickChart } from "./candlestick-chart";
 
 const intervals: { value: MarketInterval; label: string }[] = [
@@ -69,6 +70,7 @@ function MarketSectionContent({ ticker, data }: { ticker: string; data: MarketDa
         {secondary && <p className={`mt-1 text-xs font-medium tabular-nums ${Number(activeMarket?.dailyChangePercent) >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{secondary}</p>}
       </article>)}
     </div>
+    <RealtimeMarket key={ticker} ticker={ticker} />
     <section aria-label="Chart timeframe" className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-medium text-slate-700">Historical price</p>

@@ -3,6 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { MarketSection } from "./market-section";
 import type { MarketData } from "@/lib/market";
 
+vi.mock("./realtime-market", () => ({ RealtimeMarket: () => null }));
+
 vi.mock("lightweight-charts", () => {
   const series = { setData: vi.fn() };
   return { CandlestickSeries: {}, HistogramSeries: {}, ColorType: { Solid: "solid" }, createChart: () => ({

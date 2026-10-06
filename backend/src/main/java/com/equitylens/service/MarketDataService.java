@@ -83,7 +83,8 @@ public class MarketDataService {
                 marketDataRepository
                         .findByCompanyId(company.getId())
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new org.springframework.web.server.ResponseStatusException(
+                                        org.springframework.http.HttpStatus.NOT_FOUND,
                                         "Market data not found for "
                                                 + ticker
                                 )

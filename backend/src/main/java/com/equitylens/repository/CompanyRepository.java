@@ -13,6 +13,9 @@ import java.util.Optional;
 public interface CompanyRepository extends JpaRepository<Company, Long> {
     Optional<Company> findByTickerIgnoreCase(String ticker);
 
+    java.util.List<Company> findByTickerContainingIgnoreCaseOrNameContainingIgnoreCaseOrderByTickerAsc(
+            String ticker, String name, org.springframework.data.domain.Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Company c where c.id = :id")
     Optional<Company> lockById(@Param("id") Long id);

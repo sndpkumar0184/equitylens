@@ -1,45 +1,32 @@
 # EquityLens frontend
 
-Next.js App Router, React, TypeScript, and Tailwind CSS. Use the ticker search or `/company/{TICKER}` to select a company. `/` is a search landing page; existing `/?ticker=...` links redirect to the company route.
+The Next.js App Router frontend presents company financials, historical market data, and a dedicated research assistant. It uses React, TypeScript, Tailwind CSS, and Lightweight Charts.
 
-## Run locally
+## Routes and data access
 
-Start the existing PostgreSQL container and Spring Boot backend (see `backend/Agents.md`), then run from this directory:
+- `/company/[ticker]`: financial overview and company navigation.
+- `/company/[ticker]/market`: historical prices and optional live-market analytics.
+- `/company/[ticker]/assistant`: research with explicit company context.
+- `/assistant`: independent research page.
+- `/api/assistant` and market proxy routes: server-side backend access.
+
+Overview and Market use the existing REST backend. Research uses the backend assistant, which retrieves data through MCP. The optional live-market panel handles unavailable data separately from historical charts.
+
+## Development
 
 ```bash
-npm install
+cp .env.example .env.local
+npm ci
 npm run dev
 ```
 
-Open http://localhost:3000. Next.js fetches the company profile, normalized income statements, and balance sheets from Spring Boot on the server. No browser CORS configuration is required.
-
-The default backend address is `http://localhost:8080`. To override it, add a server-only setting to `.env.local`:
-
-```dotenv
-BACKEND_URL=http://localhost:8080
-```
-
-Requests use a 120-second timeout and do not cache financial responses. The backend resolves new tickers through the SEC directory and imports missing financial data on demand. Loading, unknown-company, and retryable error states are shown in the UI.
-
-## Data presentation
-
-- Annual views use FY observations; quarterly views use Q1–Q4 and standalone QUARTER observations. YTD, rolling-year observations, and unknown durations are excluded.
-- Cards use the latest selected statement. Cash/assets match its exact end date and USD unit; unavailable matches display a dash.
-- Charts and the table show up to eight reporting periods. Dates are reporting boundaries, not inferred fiscal-year labels.
-- Charts preserve negative values and gaps for unavailable observations. The table provides exact values.
-- This initial dashboard displays USD financials. Missing values are never converted to zero.
-- SVG charts require no chart dependency. System fonts keep builds independent of external font downloads.
-
-## Checks
+`BACKEND_URL` defaults to `http://localhost:8080`. Keep backend/provider addresses and credentials server-side; use no `NEXT_PUBLIC_` secrets. Configure `AI_ACCESS_TOKEN` identically to the backend if enabled.
 
 ```bash
 npm run lint
-npm run build
 npm test
+npm exec tsc -- --noEmit
+npm run build
 ```
 
-Vitest and React Testing Library cover period selection, missing values, and dashboard interactions. Use `npm run test:watch` during development.
-
-If a restricted environment blocks Turbopack worker ports, use `npm run build -- --webpack` (and `npm run dev -- --webpack`).
-
-See [ticker architecture and verification](../docs/ticker-driven-companies.md) for API contracts, database upgrades, and live integration commands.
+See [local development](../docs/development.md), [verification](../docs/verification.md), and [third-party notices](THIRD_PARTY_NOTICES.md).

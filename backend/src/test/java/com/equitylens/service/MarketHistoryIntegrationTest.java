@@ -113,13 +113,16 @@ class MarketHistoryIntegrationTest {
     }
 
     @Test void returnsBackendMonthlyCandlesAndRejectsUnavailableHourlyData() {
-        var rows = List.of(price(today.minusMonths(2).withDayOfMonth(3), 100),
-                price(today.minusMonths(1).withDayOfMonth(4), 120), price(today.minusDays(4), 120), price(today.minusDays(1), 130));
+        // Use completed calendar months so this fixture remains valid on the first day of a month.
+        var lastMonth = today.withDayOfMonth(1).minusMonths(1);
+        var rows = List.of(price(lastMonth.minusMonths(2).withDayOfMonth(3), 100),
+                price(lastMonth.minusMonths(1).withDayOfMonth(4), 120),
+                price(lastMonth.withDayOfMonth(10), 120), price(lastMonth.withDayOfMonth(15), 130));
         when(provider.getHistory(anyString(), any(), any())).thenReturn(rows);
-        var monthly = service.getMarket("MKT.TEST", today.minusMonths(3), today, com.equitylens.providers.MarketDataProvider.Interval.MONTHLY);
+        var monthly = service.getMarket("MKT.TEST", lastMonth.minusMonths(2), today, com.equitylens.providers.MarketDataProvider.Interval.MONTHLY);
         assertEquals(com.equitylens.providers.MarketDataProvider.Interval.MONTHLY, monthly.interval());
         assertEquals(3, monthly.history().size());
-        assertEquals(today.withDayOfMonth(1), monthly.history().getLast().date());
+        assertEquals(lastMonth, monthly.history().getLast().date());
         assertEquals(0, BigDecimal.valueOf(120).compareTo(monthly.history().getLast().open()));
         assertEquals(0, BigDecimal.valueOf(140).compareTo(monthly.history().getLast().high()));
         assertEquals(0, BigDecimal.valueOf(110).compareTo(monthly.history().getLast().low()));

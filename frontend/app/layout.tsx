@@ -14,7 +14,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-base text-white">E</span>EquityLens<span className="ml-3 hidden border-l border-slate-200 pl-4 text-xs font-medium tracking-normal text-slate-400 lg:inline">Financial research</span></Link>
-        <CompanySearch />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5"><Link href="/assistant" className="text-sm font-medium text-indigo-700 hover:text-indigo-900">AI Assistant</Link><CompanySearch /></div>
       </div>
     </header>
     <main id="main-content" className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-8 sm:py-10">{children}</main>

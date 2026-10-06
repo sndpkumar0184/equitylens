@@ -27,12 +27,22 @@ public class DashboardService {
     }
 
     public DashboardResponse getDashboard(String ticker) {
+        return getDashboard(ticker, DISPLAY_PERIODS);
+    }
+
+    /** Bounded research window, using exactly the same normalization and calculations as the dashboard. */
+    public DashboardResponse getDashboard(String ticker, int periods) {
+        if (periods < 1 || periods > 40) throw new IllegalArgumentException("Use 1–40 reporting periods");
         var company = companies.getCompany(ticker);
         var normalized = normalizer.normalize(financials.getDashboardFinancials(company.getTicker(), METRICS));
-        return new DashboardResponse(CompanyResponse.from(company), build(normalized, true), build(normalized, false));
+        return new DashboardResponse(CompanyResponse.from(company), build(normalized, true, periods), build(normalized, false, periods));
     }
 
     PeriodData build(List<NormalizedFinancialMetricResponse> normalized, boolean annual) {
+        return build(normalized, annual, DISPLAY_PERIODS);
+    }
+
+    private PeriodData build(List<NormalizedFinancialMetricResponse> normalized, boolean annual, int displayPeriods) {
         // One normalization pass upstream. Never join different currencies, durations or reporting dates.
         Map<PeriodKey, List<NormalizedFinancialMetricResponse>> flows = normalized.stream()
                 .filter(m -> "USD".equals(m.unit()))
@@ -46,8 +56,8 @@ public class DashboardService {
                     values.get("cost_of_revenue"), values.get("gross_profit"), values.get("operating_income"),
                     values.get("net_income"), "USD");
         }).toList();
-        List<PeriodKey> shown = periods.subList(Math.max(0, periods.size() - DISPLAY_PERIODS), periods.size());
-        List<IncomeStatementResponse> income = history.subList(Math.max(0, history.size() - DISPLAY_PERIODS), history.size());
+        List<PeriodKey> shown = periods.subList(Math.max(0, periods.size() - displayPeriods), periods.size());
+        List<IncomeStatementResponse> income = history.subList(Math.max(0, history.size() - displayPeriods), history.size());
         List<Growth> growth = income.stream().map(row -> new Growth(row.period(), row.periodStart(), row.periodEnd(),
                 DashboardCalculations.growth(row, history))).toList();
         List<Profitability> profitability = income.stream().map(row -> new Profitability(row.period(), row.periodStart(), row.periodEnd(),

@@ -118,6 +118,21 @@ public class FinancialDataService {
         company.setFinancialImportVersion(SecFinancialDataParser.MAPPING_VERSION);
     }
 
+    public record FilingSource(String metric, LocalDate periodStart, LocalDate periodEnd,
+            LocalDate filingDate, String form, String frame, String unit) {}
+
+    /** Source observations, not a claim that every observation is the selected/derived output. */
+    public List<FilingSource> getResearchSources(String ticker, LocalDate from, LocalDate to) {
+        return getDashboardFinancials(ticker, DashboardService.METRICS).stream()
+                .filter(com.equitylens.sec.SecObservationPolicy::isValid)
+                .filter(f -> !f.getPeriodEnd().isBefore(from) && !f.getPeriodEnd().isAfter(to))
+                .sorted(Comparator.comparing(FinancialMetric::getPeriodEnd).reversed()
+                        .thenComparing(FinancialMetric::getFilingDate, Comparator.reverseOrder()))
+                .map(f -> new FilingSource(f.getMetric(), f.getPeriodStart(), f.getPeriodEnd(),
+                        f.getFilingDate(), f.getForm(), f.getFrame(), f.getUnit()))
+                .distinct().limit(101).toList();
+    }
+
     public List<IncomeStatementResponse> getIncomeStatement(
             String ticker) {
 

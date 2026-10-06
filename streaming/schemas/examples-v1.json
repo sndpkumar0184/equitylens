@@ -1,0 +1,83 @@
+[
+  {
+    "schemaVersion": 1,
+    "eventId": "example-TRADE",
+    "eventType": "TRADE",
+    "symbol": "AAPL",
+    "eventTime": "2026-09-30T14:00:00.000000000Z",
+    "receivedAt": "2026-09-30T14:00:01.000000000Z",
+    "provider": "SYNTHETIC",
+    "feed": "SCHEMA_EXAMPLE",
+    "exchange": null,
+    "sourceMetadata": {
+      "synthetic": true
+    },
+    "data": {
+      "price": 100.25,
+      "quantity": 10
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "eventId": "example-QUOTE",
+    "eventType": "QUOTE",
+    "symbol": "AAPL",
+    "eventTime": "2026-09-30T14:00:00.000000000Z",
+    "receivedAt": "2026-09-30T14:00:01.000000000Z",
+    "provider": "SYNTHETIC",
+    "feed": "SCHEMA_EXAMPLE",
+    "exchange": null,
+    "sourceMetadata": {
+      "synthetic": true
+    },
+    "data": {
+      "bidPrice": 100,
+      "bidSize": 10,
+      "askPrice": 101,
+      "askSize": 20,
+      "sizeUnit": "SHARES",
+      "bidExchange": "IEX",
+      "askExchange": "IEX"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "eventId": "example-BAR",
+    "eventType": "BAR",
+    "symbol": "AAPL",
+    "eventTime": "2026-09-30T14:00:00.000000000Z",
+    "receivedAt": "2026-09-30T14:00:01.000000000Z",
+    "provider": "SYNTHETIC",
+    "feed": "SCHEMA_EXAMPLE",
+    "exchange": null,
+    "sourceMetadata": {
+      "synthetic": true
+    },
+    "data": {
+      "interval": "1m",
+      "open": 100,
+      "high": 102,
+      "low": 99,
+      "close": 101,
+      "volume": 20,
+      "vwap": 100.5
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "eventId": "example-REFERENCE_PRICE",
+    "eventType": "REFERENCE_PRICE",
+    "symbol": "AAPL",
+    "eventTime": "2026-09-30T14:00:00.000000000Z",
+    "receivedAt": "2026-09-30T14:00:01.000000000Z",
+    "provider": "SYNTHETIC",
+    "feed": "SCHEMA_EXAMPLE",
+    "exchange": null,
+    "sourceMetadata": {
+      "synthetic": true
+    },
+    "data": {
+      "price": 100.25
+    }
+  }
+]
